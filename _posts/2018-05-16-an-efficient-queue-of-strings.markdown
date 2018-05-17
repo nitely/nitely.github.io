@@ -43,8 +43,10 @@ to read for those coming from any procedural language.
 
 There are two important things here: a single string of substrings and a dynamic array that keeps track of the boundaries of each substring. Note that this queue can be easily reused by simply resetting the counters.
 
-To add an element, we first remove elements from the end of the queue until there's enough space to store the new substring. The end may be in any index of the vector and it moves in a circular way when removing the elements. Then, the start of the vector is increased to point to the new element.  
+To add an element, we first remove elements from the tail/end of the queue until there's enough space to store the new substring. The tail may be in any index of the vector and it moves in a circular way when removing the elements. Then, the head/start of the queue is increased to point to the new element.
 By doing *modulus* we wrap-around when the actual end of the vector is reached. Lastly, the substring is stored pretty much the same way as its boundaries.
+
+Note that since this is a *circular queue* the tail/head terms are reversed from a regular queue. This is because the used portion of it resembles a snake going around in a circle and so the head is the end at which elements are added, or [so I've read...](https://softwareengineering.stackexchange.com/questions/144477/on-a-queue-which-end-is-the-head)
 
 {% highlight nim %}
 proc add(q: var StrQueue, x: string) =
@@ -76,7 +78,7 @@ proc pop(q: var StrQueue): Slice[int] =
 
 ## Optimizations
 
-Here there are some optimizations that would make the code more complex:
+Here there are some optimizations:
 
 * Use arrays to avoid allocations, if the queue is small enough.
 * Make the string and boundaries size a power of two and do `x & (y-1)` instead of modulus.
