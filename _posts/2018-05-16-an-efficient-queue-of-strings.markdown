@@ -2,7 +2,6 @@
 layout: post
 title:  "An efficient circular queue of strings"
 date: 2018-05-16 19:23:47 -0300
-categories: algorithms nim
 ---
 
 I've been interested in all-things HTTP/2 for a while now and I've meaning to write my own implementation of the whole protocol. One of the first steps is to implement the [header compressor](https://github.com/nitely/nim-hpack), so we can go from a blob of bytes to the headers in plain text that we all know.
