@@ -110,4 +110,4 @@ The slowest solution was about as fast as the regular queue of string references
 
 ## Conclusion
 
-Compared to a regular queue, this one avoids pointer indirection for each substring, it potentially avoids cache misses, and it avoids resorting to something like arenas.
+Compared to a regular queue, this one can be preallocated at the start of the program and be efficiently reused over and over again, it potentially avoids cache misses, and it avoids resorting to something like arenas.
