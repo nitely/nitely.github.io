@@ -84,6 +84,30 @@ Here there are some optimizations:
 * Make the string and boundaries size a power of two and do `x & (y-1)` instead of modulo.
 * Use `memcopy` to store the substrings.
 
+## Benchmarks
+
+[@IJzerbaard](https://www.reddit.com/r/programming/comments/8k2lny/an_efficient_circular_queue_of_strings/dz4eu67/) asked me to add some [benchmarks](https://gist.github.com/nitely/35b57b22aa6d360b6f53f4b01762208e). So, I made some for the `add` function which is the most expensive one. Results on my laptop, YMMV:
+
+```
+============================================================================
+GlobalBenchmark                                 relative  time/iter  iters/s
+============================================================================
+GlobalBenchmark                                            334.15ps    2.99G
+============================================================================
+crap.nim                                        relative  time/iter  iters/s
+============================================================================
+addWithModulo                                                1.38ms   722.64
+addWithAnd                                      1652.41%    83.75us   11.94K
+addWithMemCopy                                  36495.54%     3.79us  263.73K
+simpleStrCopy                                                3.39us  294.82K
+strMemCopy                                       270.54%     1.25us  797.60K
+noOp                                                         0.00fs      inf
+```
+
+The bitwise `AND` solution is around ~16x faster than the modulo solution. Memcopy solution is around ~365x faster than the modulo one, also it's ~3x slower than doing a memcopy and nothing else.
+
+The slowest solution was about as fast as the regular queue of string references I used at first, so the fastest solution is an improvement.
+
 ## Conclusion
 
 Compared to a regular queue, this one avoids pointer indirection for each substring, it potentially avoids cache misses, and it avoids resorting to something like arenas.
