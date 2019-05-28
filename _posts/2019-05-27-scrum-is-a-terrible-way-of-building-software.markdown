@@ -12,7 +12,7 @@ Well, I've news for you. No programmer likes Scrum. [It adds zero benefits to a 
 
 Any improvements to the actual software development process, like improving communication across teams, knowing what every team-mate is working on, etc are not things that Scrum brings and can not be implemented in a less formal process.
 
-As far as software development goes, a weekly stand-up without managers, a priority queue of tasks and a monthly report to other teams would suffice for most companies I've worked for. For managers asking for estimations, just count the number of solved issues in a month, that's a good enough prediction of the number of solved tickets in any given month.
+As far as software development goes, a weekly or every other week stand-up without managers, a priority queue of tasks and a monthly report to other teams would suffice for most companies I've worked for. For managers asking for estimations, just count the number of solved issues in a month, that's a good enough prediction of the number of solved tickets in any given month.
 
 There's data to back this up. I won't gather it, though. It should be enough for anyone to read any comment section for some Scrum article in the many news aggregators focused on tech. There are also plenty of articles about how Scrum is not an improvement over other methodologies for ~~managing~~ building software [0]. But even so, higher-ups will choose Scrum over and over again. To be fair, they probably have never been on the other side of a Scrum team, the programmer side, either that or they simply do not know better.
 
