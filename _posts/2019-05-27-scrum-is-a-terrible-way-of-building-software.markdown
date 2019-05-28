@@ -14,7 +14,7 @@ Any improvements to the actual software development process, like improving comm
 
 As far as software development goes, a weekly stand-up without managers, a priority queue of tasks and a monthly report to other teams would suffice for most companies I've worked for. For managers asking for estimations, just count the number of solved issues in a month, that's a good enough prediction of the number of solved tickets in any given month.
 
-There's data to back this up. I won't gather it, though. It should be enough for anyone to read any comment section for some Scrum article in the many news aggregators focused on tech. There are plenty of articles about how Scrum is not an improvement around other methodologies for ~~building~~ managing software teams [0]. But even so, higher-ups will choose Scrum over and over again. To be fair, they probably have never being on the other side of a Scrum team, the programmer side, either that or they simply do not know better.
+There's data to back this up. I won't gather it, though. It should be enough for anyone to read any comment section for some Scrum article in the many news aggregators focused on tech. There are plenty of articles about how Scrum is not an improvement over other methodologies for ~~managing~~ building software [0]. But even so, higher-ups will choose Scrum over and over again. To be fair, they probably have never being on the other side of a Scrum team, the programmer side, either that or they simply do not know better.
 
 The only positive opinions towards Scrum to be found are about how it is almost always poorly implemented, so according to this everyone implements it the wrong way. So, what good is it if it's usually not implemented properly?
 
