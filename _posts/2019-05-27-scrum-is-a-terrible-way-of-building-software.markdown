@@ -6,7 +6,7 @@ date: 2019-05-27 23:06:00 -0300
 
 Scrum is not a software development methodology, it's a management methodology and a terrible one at it. It sucks the energy out of the programmers. The amount of micromanaging (or self-micromanaging) is absurd.
 
-Every start-up I've worked for moved to doing Scrum after a few years in the field, usually when expanding or simply when growing their teams. There are many reasons for doing this: being able to quantify the effort a project will take, estimate how long it will take, track what the team is working on and so on. This is why I say it's a management methodology and not a development methodology.
+Every start-up I've worked for moved to Scrum after a few years in the field. There are many reasons for doing this: being able to quantify the effort a project will take, estimate how long it will take, track what the team is working on and so on. This is why I say it's a management methodology and not a development methodology.
 
 Well, I've news for you. No programmer likes Scrum. [It adds zero benefits to a development team, only cruft](https://medium.com/@jsonpify/you-dont-need-standup-9a74782517c1). Daily stand-ups, sprint planning, ticket estimations, sprint retrospectives, demos, ugh!
 
