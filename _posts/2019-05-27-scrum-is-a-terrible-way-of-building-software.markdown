@@ -27,3 +27,4 @@ It's widely understood by now that there is no silver bullet when it comes to bu
 * [Scrum disempowers developers](https://www.lambdacambridge.com/blog/how-scrum-disempowers-developers-and-destroys-agile) ([HN comments](https://news.ycombinator.com/item?id=17186591))
 * [A brief list of what Scrum gets wrong](https://medium.com/@ard_adam/why-scrum-is-the-wrong-way-to-build-software-99d8994409e5) ([HN comments](https://news.ycombinator.com/item?id=16892307))
 * [Ask HN: Does Scrum work?](https://news.ycombinator.com/item?id=18985942)
+* [Why I'm not a big fan of Scrum](http://okigiveup.net/not-big-fan-of-scrum/)
