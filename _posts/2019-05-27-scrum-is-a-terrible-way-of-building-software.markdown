@@ -10,15 +10,17 @@ Every start-up I've worked for moved to Scrum after a few years in the field. Th
 
 Well, I've news for you. No programmer likes Scrum. [It adds zero benefits to a development team, only cruft](https://medium.com/@jsonpify/you-dont-need-standup-9a74782517c1). Daily stand-ups, sprint planning, ticket estimations, retrospectives, demos, ugh!
 
-Any improvements to the actual software development process, like improving communication across teams, knowing what every team-mate is working on, etc are not things that Scrum brings and can not be implemented in a less formal process.
+Any improvements to the actual software development process, like improving communication across teams, knowing what every teammate is working on, etc are not things that Scrum brings and can not be implemented in a less formal process.
 
-As far as software development goes, a weekly or every other week stand-up without managers, a priority queue of tasks and a monthly report to other teams would suffice for most companies I've worked for. For managers asking for estimations, just count the number of solved issues in a month, that's a good enough prediction of the number of solved tickets in any given month.
+Early and continuous delivery, short and frequent iterations, been able to maintain a constant pace indefinitely, etc are Agile principles, not Scrum principles. [Scrum is not Agile](http://www.dennisweyland.net/blog/?p=43).
 
-There's data to back this up. I won't gather it, though. It should be enough for anyone to read any comment section for some Scrum article in the many news aggregators focused on tech. There are also plenty of articles about how Scrum is not an improvement over other methodologies for ~~managing~~ building software [0]. But even so, higher-ups will choose Scrum over and over again. To be fair, they probably have never been on the other side of a Scrum team, the programmer side, either that or they simply do not know better.
+As far as software development goes, a weekly --or every other week-- stand-up without managers, a priority queue of tasks and a monthly report to other teams would suffice for most companies I've worked for. For managers asking for estimations, just count the number of solved issues in a month, that's a good enough prediction of the number of solved tickets in any given month.
 
-The only positive opinions about Scrum to be found are about how it is almost always poorly implemented, so according to this everyone implements it the wrong way. So, what good is it if it's usually not implemented properly?
+There's data to back this up. I won't gather it, though. It should be enough for anyone to read any comment section for some Scrum article in the many news aggregators focused on tech. There are also plenty of articles about how Scrum is not an improvement to any software development process [0]. But even so, higher-ups will choose Scrum over and over again. To be fair, they probably have never been on the other side of a Scrum team, the programmer side, either that or they simply do not know better.
 
-It's widely understood by now that there is no silver bullet when it comes to building software. Do whatever works for your team is the norm and that is fine. It's a good way of building software.
+The thing is, there is no silver bullet when it comes to building software. A good development team will be able to deliver good software despite Scrum, but for how long?
+
+/rant
 
 [0]:
 
@@ -28,3 +30,4 @@ It's widely understood by now that there is no silver bullet when it comes to bu
 * [A brief list of what Scrum gets wrong](https://medium.com/@ard_adam/why-scrum-is-the-wrong-way-to-build-software-99d8994409e5) ([HN comments](https://news.ycombinator.com/item?id=16892307))
 * [Ask HN: Does Scrum work?](https://news.ycombinator.com/item?id=18985942)
 * [Why I'm not a big fan of Scrum](http://okigiveup.net/not-big-fan-of-scrum/)
+* [The Agile manifesto](https://agilemanifesto.org/iso/en/principles.html)
