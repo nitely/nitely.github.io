@@ -16,7 +16,7 @@ Early and continuous delivery, short and frequent iterations, been able to maint
 
 As far as software development goes, a weekly --or every other week-- stand-up without managers, a priority queue of tasks and a monthly report to other teams would suffice for most companies I've worked for. For managers asking for estimations, just count the number of solved issues in a month, that's a good enough prediction of the number of solved tickets in any given month.
 
-There's data to back this up. I won't gather it, though. It should be enough for anyone to read any comment section for some Scrum article in the many news aggregators focused on tech. There are also plenty of articles about how Scrum is not an improvement to any software development process [0]. But even so, higher-ups will choose Scrum over and over again. To be fair, they probably have never been on the other side of a Scrum team, the programmer side, either that or they simply do not know better.
+Programmers are unhappy on tightly (self-)managed groups. There's data to back this up. I won't gather it, though. It should be enough for anyone to read any comment section for some Scrum article in the many news aggregators focused on tech. There are also plenty of articles about how Scrum is not an improvement to any software development process [0]. But even so, higher-ups will choose Scrum over and over again. To be fair, they probably have never been on the other side of a Scrum team, the programmer side, either that or they simply do not know better.
 
 The thing is, there is no silver bullet when it comes to building software. A good development team will be able to deliver good software despite Scrum, but for how long?
 
