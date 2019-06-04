@@ -10,9 +10,9 @@ Every start-up I've worked for moved to Scrum after a few years in the field. Th
 
 Well, I've news for you. No programmer likes Scrum. [It adds zero benefits to a development team, only cruft](https://medium.com/@jsonpify/you-dont-need-standup-9a74782517c1). Daily stand-ups, sprint planning, ticket estimations, retrospectives, demos, ugh!
 
-Any improvements to the actual software development process, like improving communication across teams, knowing what every teammate is working on, etc are not things that Scrum brings and can not be implemented in a less formal process.
+Any improvements to the actual software development process like improving communication across teams, knowing what every teammate is working on, etc are not things that Scrum brings and can not be implemented in a less formal process.
 
-Early and continuous delivery, short and frequent iterations, been able to maintain a constant pace indefinitely, etc are Agile principles, not Scrum principles. [Scrum is not Agile](http://www.dennisweyland.net/blog/?p=43).
+Individuals and interactions over processes and tools, early and continuous delivery, short and frequent iterations, been able to maintain a constant pace indefinitely, etc are Agile principles, not Scrum principles. [Scrum is not Agile](http://www.dennisweyland.net/blog/?p=43).
 
 As far as software development goes, a weekly --or every other week-- stand-up without managers, a priority queue of tasks and a monthly report to other teams would suffice for most companies I've worked for. For managers asking for estimations, just count the number of solved issues in a month, that's a good enough prediction of the number of solved tickets in any given month.
 
