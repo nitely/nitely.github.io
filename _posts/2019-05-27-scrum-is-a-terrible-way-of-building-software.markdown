@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Scrum is a terrible way of building software"
+title:  "Scrum is a terrible way to build software"
 date: 2019-05-27 23:06:00 -0300
 ---
 
