@@ -1,5 +1,3 @@
-# Reinventing Regex TNFA and TDFA
-
 Tl;dr: This article describes a DFA based regex engine that supports sub-matches extractions. There is a [document](https://github.com/nitely/nitely.github.io/releases/download/0.0/jan_2020_dfa_submatches_extraction.pdf)[0] providing most of the interesting algorithms described here.
 
 The construction algorithm creates a NFA (without ε-transitions) and a DFA that are able to extract sub-matches and assert empty matches (start/end of text, and word boundaries). The matching algorithm extracts full parse trees, not just a single match for each capture group (as most regex engines do).
