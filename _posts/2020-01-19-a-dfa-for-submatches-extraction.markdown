@@ -45,10 +45,10 @@ There's an alternative matching algorithm that simulates both DFA and NFA at the
 There's an implementation of this algorithm called nregex[6] that's written in the Nim programming language. Beware, it's not very optimized, however it already shows promising results, as the classical DFA matching is faster than PCRE in some cases. Nim allows powerful macros that will be used to generate optimized code and remove most of the current bottlenecks.
 
 
-[0] https://github.com/nitely/nitely.github.io/releases/download/0.0/jan_2020_dfa_submatches_extraction.pdf
-[1] https://swtch.com/~rsc/regexp/regexp1.html
-[2] https://github.com/nitely/regexy
-[3] https://github.com/nitely/nim-regex
-[4] https://en.wikipedia.org/wiki/Powerset_construction
-[5] https://en.wikipedia.org/wiki/Powerset_construction#Complexity
-[6] https://github.com/nitely/nregex
+[0]: https://github.com/nitely/nitely.github.io/releases/download/0.0/jan_2020_dfa_submatches_extraction.pdf
+[1]: https://swtch.com/~rsc/regexp/regexp1.html
+[2]: https://github.com/nitely/regexy
+[3]: https://github.com/nitely/nim-regex
+[4]: https://en.wikipedia.org/wiki/Powerset_construction
+[5]: https://en.wikipedia.org/wiki/Powerset_construction#Complexity
+[6]: https://github.com/nitely/nregex
