@@ -30,6 +30,7 @@ The thing is, there is no silver bullet when it comes to building software. A go
 * [Scrum is fragile, not Agile](http://www.dennisweyland.net/blog/?p=43) ([Reddit comments](https://www.reddit.com/r/programming/comments/btbnpn/scrum_is_fragile_not_agile/)) ([HN comments](https://news.ycombinator.com/item?id=20017854))
 * [You don’t need standups](https://medium.com/@jsonpify/you-dont-need-standup-9a74782517c1) ([HN comments](https://news.ycombinator.com/item?id=17671464))
 * [Scrum disempowers developers](https://www.lambdacambridge.com/blog/how-scrum-disempowers-developers-and-destroys-agile) ([HN comments](https://news.ycombinator.com/item?id=17186591))
+* [Why Self-Organizing Teams Don’t Work](https://www.linkedin.com/pulse/why-self-organizing-teams-dont-work-cliff-berg/)
 * [A brief list of what Scrum gets wrong](https://medium.com/@ard_adam/why-scrum-is-the-wrong-way-to-build-software-99d8994409e5) ([HN comments](https://news.ycombinator.com/item?id=16892307))
 * [Ask HN: Does Scrum work?](https://news.ycombinator.com/item?id=18985942)
 * [Why I'm not a big fan of Scrum](http://okigiveup.net/not-big-fan-of-scrum/)

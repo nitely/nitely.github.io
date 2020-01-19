@@ -22,7 +22,7 @@ I did some research but I didn't have any luck finding an algorithm that would m
 type
   StrQueue = object
     ## An efficient queue of strings.
-    ## - ``s``: a string storing all substrings
+    ## - ``s``: stores all substrings
     ## - ``pos``: stores the index to the end of last substring
     ## - ``filled``: tracks how much of ``s`` is being used
     ## - ``b``: stores the boundaries of each substrings
@@ -53,7 +53,7 @@ proc add(q: var StrQueue, x: string) =
   while q.len > 0 and x.len > q.left:
     discard q.pop()
   if x.len > q.s.len:
-    raise newException(ValueError, "string to long")
+    raise newException(ValueError, "string too long")
   q.head = (q.head+1) mod q.b.len
   q.b[q.head] = q.pos .. q.pos+x.len-1
   q.i = min(q.b.len, q.i+1)
@@ -86,7 +86,7 @@ Here there are some optimizations:
 
 ## Benchmarks
 
-[@IJzerbaard](https://www.reddit.com/r/programming/comments/8k2lny/an_efficient_circular_queue_of_strings/dz4eu67/) asked me to add some [benchmarks](https://gist.github.com/nitely/35b57b22aa6d360b6f53f4b01762208e). So, I made some for the `add` function which is the most expensive one. Results on my laptop, YMMV:
+[@IJzerbaard](https://www.reddit.com/r/programming/comments/8k2lny/an_efficient_circular_queue_of_strings/dz4eu67/) asked me to add some [benchmarks](https://gist.github.com/nitely/35b57b22aa6d360b6f53f4b01762208e). So, I've made some for the `add` function which is the most expensive one. Results on my laptop, YMMV:
 
 ```
 ============================================================================
