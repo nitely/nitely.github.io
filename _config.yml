@@ -8,6 +8,7 @@ baseurl: "" # the subpath of your site, e.g. /blog
 url: "https://nitely.github.io"
 github_username: nitely
 author: Esteban Castro Borsani
+google_analytics: "UA-156582425-1"
 
 # Build settings
 markdown: kramdown
