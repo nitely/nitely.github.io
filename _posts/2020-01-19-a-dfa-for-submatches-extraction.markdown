@@ -4,7 +4,7 @@ title:  "A DFA for submatches extraction"
 date: 2020-01-19 08:10:00 -0300
 ---
 
-Tl;dr: This article describes a DFA based regex engine that supports submatches extraction. There is a [document](https://nitely.github.io/assets/jan_2020_dfa_submatches_extraction.pdf)[0] providing most of the interesting algorithms described here.
+Tl;dr: This article describes a DFA based regex engine that supports submatches extraction. There is a [document](https://nitely.github.io/assets/jan_2020_dfa_submatches_extraction.pdf) providing most of the interesting algorithms described here. There's a reference implementation called [nregex](https://github.com/nitely/nregex) written in [Nim](https://nim-lang.org/).
 
 The construction algorithm creates a NFA (without ε-transitions) and a DFA that are able to extract submatches and assert empty matches (start/end of text, and word boundaries). The matching algorithm extracts full parse trees, not just a single match for each capture group (as most regex engines do).
 
@@ -56,3 +56,4 @@ There's an implementation of this algorithm called nregex[6] that's written in t
 [4]: https://en.wikipedia.org/wiki/Powerset_construction
 [5]: https://en.wikipedia.org/wiki/Powerset_construction#Complexity
 [6]: https://github.com/nitely/nregex
+[7]: https://nim-lang.org/
