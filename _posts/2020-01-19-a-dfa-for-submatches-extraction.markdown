@@ -52,17 +52,17 @@ There's an implementation of this algorithm called nregex[6] that's written in t
 
 The following benchmarks show nregex[6] is up to 7 times faster than PCRE. However, when the RE contains capture groups, PCRE is about 4 times faster than nregex.
 
->         relative  time/iter  iters/s  regex                    text
->CPU                294.85ps   3.39G
->
->PCRE               1.10ms     912.11   ^\w*sol\w*$              (a*100000)sol(b*100000)
->nregex   739.52%   148.25us   6.75K
->
->PCRE               152.28ns   6.57M    ^[0-9]+-[0-9]+-[0-9]+$   650-253-0001
->nregex   420.48%   36.22ns    27.61M
->
->PCRE               168.92ns   5.92M    ^[0-9]+..+$              650-253-0001
->nregex   397.34%   42.51ns    23.52M
+|  | relative | time/iter | iters/s | regex | text
+CPU | 294.85ps | 3.39G
+
+PCRE | | 1.10ms | 912.11 | ^\w*sol\w*$ | (a*100000)sol(b*100000)
+nregex | 739.52% | 148.25us | 6.75K
+
+PCRE | | 152.28ns | 6.57M | ^[0-9]+-[0-9]+-[0-9]+$ | 650-253-0001
+nregex | 420.48% | 36.22ns | 27.61M
+
+PCRE | | 168.92ns | 5.92M | ^[0-9]+..+$ | 650-253-0001
+nregex | 397.34% | 42.51ns | 23.52M
 
 
 [0]: https://nitely.github.io/assets/jan_2020_dfa_submatches_extraction.pdf
