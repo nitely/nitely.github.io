@@ -8,8 +8,6 @@ The regex literals optimization avoids running the regex engine on parts of the 
 
 An example of a regex this can be applied to is `\w+@\w+\.\w+`, where the algorithm *quickly* finds the first `@`, then matches `\w+` backwards to find the start of the match, and then matches `\w+\.\w+` forward to find the end of the match. It then finds the second `@`, starting from the end of the previous match, and so on. This is a fairly naive (and incorrect) implementation, but it gives the idea of how it works.
 
-It's not a general optimization as it does not work on every regex, but when it does, it can greatly improve the matching speed.
-
 I've recently implemented it in my pet project [nim-regex](https://github.com/nitely/nim-regex/pull/68), an NFA based regex engine that runs in (super)linear time. The results show it's around ~100x faster than before in some benchmarks. It's up to ~35x faster than PCRE when the optimization kicks in. The tests are based on [mariomka/regex-benchmark](https://github.com/mariomka/regex-benchmark).
 
 ## Literals Optimization
@@ -73,3 +71,9 @@ There are other possible optimizations:
   * Picking a literal within a "one or more" repetition / repetition group should be possible, since `(abc)+` matches the same as `abc(abc)*`.
   * It's almost always better to pick the last literal within the first literal sequence, since that way we always try to match as many literals as possible early on, and potentially fail early. We want to keep the prefix regex as short as possible, so the picking a literal in the first sequence is best.
   * Alternations can be optimized in some cases. PCRE seems to use `memchr` or similar for up to two alternation terms. A DFA could be used to quickly match candidates instead of `memchr`, as that's a more general solution.
+
+## Conclusion
+
+Literals optimization is not a general optimization as it does not work on every regex, but when it does, it can greatly improve the matching speed.
+
+Hopefully, more regex engines will implement these sort of optimizations, so they are more compelling alternatives to backtrackers such as PCRE.
