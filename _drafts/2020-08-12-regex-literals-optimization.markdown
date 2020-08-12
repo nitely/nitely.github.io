@@ -31,13 +31,17 @@ I think the best way to understand how the current nim-regex implementation work
 There are two important constraints to picking a literal:
 
   * `none of the characters or symbols within the prefix can match the literal`, why? consider the regex: `\d\w+x`, and the input text: `xxxxxxxxxxx`; this would take quadratic time, as the prefix will match until the start of the string every time.
-  * The literal cannot be part of a repetition, nor it can be part of an alternation. For example: `(abc)*def` the first lit candidate is `d`, since `(abc)*` may or may not be part of the match. Same thing for alternations.
+  * The literal cannot be part of a repetition, nor it can be part of an alternation. For example: `(abc)*def` the first literal candidate is `d`, since `(abc)*` may or may not be part of the match. Same thing for alternations.
 
-Here's some pseudo code of the main algorithm:
+Here's the main algorithm in [Nim](https://nim-lang.org/):
 
 {% highlight nim %}
-func findAll(text: string, regex: Regex, start: int): int =
-  var matches: Matches = @[]
+func findAll(
+  matches: var Matches,
+  text: string,
+  regex: Regex,
+  start: int
+): int =
   var i = start
   var limit = start
   while i < text.len:
@@ -67,5 +71,5 @@ There are other possible optimizations:
 
   * Picking a literal —even if the prefix matches it— should take linear time as long as the prefix is bounded (i.e: does not contain repetitions).
   * Picking a literal within a "one or more" repetition / repetition group should be possible, since `(abc)+` matches the same as `abc(abc)*`.
-  * It's almost always better to pick the last literal within the first literal sequence, since that way we always try to match as many literals as possible early on, and potentially fail early. We want to keep the prefix regex as short as possible, so the picking a lit in the first sequence is best.
+  * It's almost always better to pick the last literal within the first literal sequence, since that way we always try to match as many literals as possible early on, and potentially fail early. We want to keep the prefix regex as short as possible, so the picking a literal in the first sequence is best.
   * Alternations can be optimized in some cases. PCRE seems to use `memchr` or similar for up to two alternation terms. A DFA could be used to quickly match candidates instead of `memchr`, as that's a more general solution.
