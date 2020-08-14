@@ -22,13 +22,13 @@ I think the best way to understand how the current nim-regex implementation work
   * The prefix is run backwards to find the start of the match.
   * A full `find_all/search/scan` is run from the start of the match.
     until a character that cannot be matched is found (safe break point)
-    or the end is reached.
+    or the end is reached. It tries to start the match at every character.
   * Go to step one and repeat from the last scanned char. Make the prefix
     match until the previous last scanned char.
 
 There are two important constraints to picking a literal:
 
-  * `none of the characters or symbols within the prefix can match the literal`, why? consider the regex: `\d\w+x`, and the input text: `xxxxxxxxxxx`; this would take quadratic time, as the prefix will match until the start of the string every time.
+  * `none of the characters or symbols within the prefix can match the literal`, why? consider the regex: `\d\w+x`, and the input text: `xxxxxxxxxxx`; this would take quadratic time, as the prefix will match until the start of the string every time. What about the limit? while the limit does avoid the excessive matching, sometimes we'd need to match past the limit, ex: regex `\d\w+x`, and text `1xxx`. If we add this constraint, the literal becomes a delimeter, and these cases get solved.
   * The literal cannot be part of a repetition, nor it can be part of an alternation. For example: `(abc)*def` the first literal candidate is `d`, since `(abc)*` may or may not be part of the match. Same thing for alternations.
 
 Here's the main algorithm in [Nim](https://nim-lang.org/):
@@ -61,7 +61,7 @@ func findAll(
 
 A given character may be consumed only twice, once by the backward prefix match, and a second time by the forward scan. Hence the algorithm runs in linear time.
 
-I may describe how `matchPrefix` and `findSome` work, how to construct the reversed NFA (hint: it's not just reversing the edges/transitions, the order matters), and how to pick the literal in a future article. The nim-regex code does have some explanations, though.
+I may describe how `matchPrefix` and `findSome` work, how to construct the reversed NFA in the right order, and how to pick the literal in a future article. The nim-regex code contains descriptions of the algorithms, though.
 
 ## Other optimizations
 
