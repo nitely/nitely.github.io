@@ -2,6 +2,7 @@
 layout: post
 title:  "A DFA for submatches extraction"
 date: 2020-01-19 08:10:00 -0300
+excerpt: "Finite Automata is commonly used to efficiently match a Regular Expression (RE) to a given textinput. There are RE engines for submatch extraction based on Non-deterministic Finite Automata (NFA). These algorithms usually return a single match for each submatch, instead of the history ofsubmatches (full parse tree). An NFA can be converted to a Deterministic Finite Automata (DFA) toimprove the runtime matching performance. This article describes an algorithm based on DFA that extracts full parse trees from text."
 ---
 
 Tl;dr: This article describes a DFA based regex engine that supports submatches extraction. There is a [document](https://nitely.github.io/assets/jan_2020_dfa_submatches_extraction.pdf) providing most of the interesting algorithms described here. There's a reference implementation called [nregex](https://github.com/nitely/nregex) written in [Nim](https://nim-lang.org/).
