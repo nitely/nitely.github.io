@@ -21,8 +21,8 @@ I think the best way to understand how the current nim-regex implementation work
   * We pick a literal that is `memchr`'ed to skip parts of the text.
   * The prefix is the regex part before the literal; none of the
     characters or symbols within the prefix must match the literal.
-  * The prefix is run backwards to find the start of the match.
-  * A full scan is run from the start of the match.
+  * The prefix is ran backwards to find the start of the match.
+  * A full scan is ran from the start of the match
     until a character that cannot be matched is found (safe break point)
     or the end is reached. The scan tries to start the match at every character.
   * Go to step one and repeat from the last scanned char. Make the prefix
@@ -30,7 +30,7 @@ I think the best way to understand how the current nim-regex implementation work
 
 There are two important constraints to picking a literal:
 
-  * `none of the characters or symbols within the prefix must match the literal`, why? consider the regex: `\d\w+x`, and the input text: `xxxxxxxxxxx`; this would take quadratic time, as the prefix will match until the start of the string every time. What about the limit? while the limit does avoid the excessive matching, sometimes we'd need to match past the limit, ex: regex `\d\w+x`, and text `1xxx`. If we add this constraint, the literal becomes a delimeter, and these cases get solved.
+  * `none of the characters or symbols within the prefix must match the literal`, why? consider the regex: `\d\w+x`, and the input text: `xxxxxxxxxxx`; this would take quadratic time, as the prefix will match until the start of the string every time. What about the limit? while the limit does avoid the excessive matching, sometimes we'd need to match past the limit, ex: regex: `\d\w+x`, and text: `1xxx`. If we add this constraint, the literal becomes a delimeter, and these cases get solved.
   * The literal cannot be part of a repetition, nor it can be part of an alternation. For example: `(abc)*def` the first literal candidate is `d`, since `(abc)*` may or may not be part of the match. Same thing for alternations.
 
 Here's the main algorithm in [Nim](https://nim-lang.org/):
@@ -59,6 +59,7 @@ func findAll(
         return -1
       if matches.len > 0:
         return i  # this is used as "start" to resume the matching
+  return -1
 {% endhighlight %}
 
 A given character may be consumed only twice, once by the backward prefix match, and a second time by the forward scan. Hence the algorithm runs in linear time.
@@ -67,7 +68,7 @@ I may describe how `matchPrefix` and `findSome` work, how to construct the rever
 
 ## Benchmarks
 
-The benchmarks regexes are based on [mariomka/regex-benchmark](https://github.com/mariomka/regex-benchmark). The only difference is the regexes are pre-compiled, so just the matching is tested. The results show nim-regex is ~63x faster than PCRE in the email test, and ~2x faster in the URI and IP tests.
+The [benchmarks](https://github.com/nitely/nim-regex/tree/master/bench) regexes are based on [mariomka/regex-benchmark](https://github.com/mariomka/regex-benchmark). The only difference is the regexes are pre-compiled, so just the matching is tested. The results show nim-regex is ~63x faster than PCRE in the email test, and ~2x faster in the URI and IP tests.
 
 Why is nim-regex so fast in the email case? The regex engine doesn't run as often. There are orders of magnitud more IP/URI candidates than email candidates (`@` chars within the text) to match. In the former case the time is dominated by the regex engine, while in the latter case it's dominated by searching the char literal.
 
