@@ -16,7 +16,7 @@ This is not to be confused with *Chivers' String Prefix Optimization*.
 
 Since nim-regex has to guarantee linear time, I'll describe optimizations that are guaranteed to take linear time. We must also ensure the matches are not overlapped.
 
-I think the best way to understand how this optimization works is by example. However, I'll describe some parts of the algorithm that may be useful to grasp it first:
+I think the best way to understand how this optimization works is by example. However, here's a high-level description of the algorithm:
 
   * We pick a literal that is `memchr`'ed to skip parts of the text.
   * The prefix is the regex part before the literal; none of the
@@ -24,13 +24,13 @@ I think the best way to understand how this optimization works is by example. Ho
   * The prefix is ran backwards to find the start of the match.
   * A full scan is ran from the start of the match
     until a character that cannot be matched is found (safe break point)
-    or the end is reached. The scan tries to start the match at every character.
+    or the end is reached. The scan tries to start the match at every character (NFAs can do this in linear time).
   * Go to step one and repeat from the last scanned char. Make the prefix
     match until the previous last scanned char.
 
 There are two important constraints to picking a literal:
 
-  * *"none of the characters or symbols within the prefix must match the literal"*, why? consider the regex: `\d\w+x`, and the input text: `xxxxxxxxxxx`; this would take quadratic time, as the prefix will match until the start of the string every time. What about the limit? while the limit does avoid the excessive matching, sometimes we'd need to match past the limit, ex: regex: `\d\w+x`, and text: `1xxx`. If we add this constraint, the literal becomes a delimeter, and these cases get solved.
+  * *"none of the characters or symbols within the prefix must match the literal"*, why? consider the regex: `\d\w+x`, and the input text: `xxxxxxxxxxx`; this would take quadratic time, as the prefix will match until the start of the string every time. What about the limit? while the limit does avoid the excessive matching, sometimes we'd need to match past the limit, ex: regex: `\d\w+x`, and text: `1xxx`. If we add this constraint, the literal becomes a delimeter, and these cases are solved.
   * The literal cannot be part of a repetition, nor it can be part of an alternation. For example: `(abc)*def` the first literal candidate is `d`, since `(abc)*` may or may not be part of the match. Same thing for alternations.
 
 Here's the main algorithm in [Nim](https://nim-lang.org/):
@@ -107,6 +107,6 @@ Here are other possible optimizations:
 
 Literals optimization is not a general optimization as it does not work on every regex, but when it does, it can greatly improve the matching speed.
 
-Can a backtracker like PCRE implement this? PCRE in particular already has some sort of similar optimization, but it's not as good/fast as this one. Backtrackers usually guarantee constant space, so they cannot implement this as described here exactly, but they can do something similar that requires backracking. If they either provide a resumable `find` function, or relax this constraint, then probably yes.
+Can a backtracker like PCRE implement this? PCRE in particular already has some sort of similar optimization, but it's not as good/fast as this one. Backtrackers usually guarantee constant space, so they cannot implement this as described here exactly, but they can do something similar that requires backtracking. If they either provide a resumable `find` function, or relax this constraint, then probably yes.
 
 Hopefully, more regex engines will implement these sort of optimizations, so they are more compelling alternatives to backtrackers such as PCRE.
