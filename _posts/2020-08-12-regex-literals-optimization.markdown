@@ -107,6 +107,6 @@ Here are other possible optimizations:
 
 Literals optimization is not a general optimization as it does not work on every regex, but when it does, it can greatly improve the matching speed.
 
-Can a backtracker like PCRE implement this? PCRE in particular already has some sort of similar optimization, but it's not as good/fast as this one. Backtrackers usually guarantee constant space, so they cannot implement this as described here exactly, but they can do something similar that requires backtracking. If they either provide a resumable `find` function, or relax this constraint, then probably yes.
+Can a backtracker like PCRE implement this? PCRE in particular already has some sort of similar optimization, but it's not as good/fast as this one. Backtrackers cannot implement this as described here exactly, but they can do something similar that requires backtracking. If they provide a resumable `find` function, then probably yes.
 
 Hopefully, more regex engines will implement these sort of optimizations, so they are more compelling alternatives to backtrackers such as PCRE.
