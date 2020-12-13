@@ -16,7 +16,7 @@ This is not to be confused with *Chivers' String Prefix Optimization*.
 
 Since nim-regex has to guarantee linear time, I'll describe optimizations that are guaranteed to take linear time. We must also ensure the matches are not overlapped.
 
-I think the best way to understand how this optimization works is by example. However, here's a high-level description of the algorithm:
+Here's a high-level description of the algorithm:
 
   * We pick a literal that is `memchr`'ed to skip parts of the text.
   * The prefix is the regex part before the literal; none of the
