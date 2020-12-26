@@ -109,4 +109,4 @@ Literals optimization is not a general optimization as it does not work on every
 
 Can a backtracker like PCRE implement this? PCRE in particular already has some sort of similar optimization, but it's not as good/fast as this one. Backtrackers cannot implement this as described here exactly, but they can do something similar that requires backtracking. If they provide a resumable `find` function, then probably yes.
 
-Hopefully, more regex engines will implement these sort of optimizations, so they are a more compelling alternative to backtrackers such as PCRE.
+Hopefully, more regex engines will implement these sort of optimizations, so there are more compelling alternatives to backtrackers such as PCRE.
