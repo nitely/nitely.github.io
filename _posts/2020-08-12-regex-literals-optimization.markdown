@@ -30,8 +30,10 @@ Here's a high-level description of the algorithm:
 
 There are two important constraints to picking a literal:
 
-  * *"none of the characters or symbols within the prefix must match the literal"*, why? consider the regex: `\d\w+x`, and the input text: `xxxxxxxxxxx`; this would take quadratic time, as the prefix will match until the start of the string every time. What about the limit? while the limit does avoid the excessive matching, sometimes we'd need to match past the limit, ex: regex: `\d\w+x`, and text: `1xxx`. If we add this constraint, the literal becomes a delimeter, and these cases are solved.
+  * *"none of the characters or symbols within the prefix must match the literal"*, why? consider the regex: `\d\w+x`, and the input text: `xxxxxxxxxxx`; this would take quadratic time, as the prefix will match until the start of the string every time. What about matching the prefix until the previous last scanned char? we'd need to match past that sometimes, ex: regex: `\d\w+x`, and text: `1xxx`. If we add this constraint, the literal becomes a delimeter, and these cases are solved.
   * The literal cannot be part of a repetition, nor it can be part of an alternation. For example: `(abc)*def` the first literal candidate is `d`, since `(abc)*` may or may not be part of the match. Same thing for alternations.
+
+These constraints can be relaxed in some cases, see the *"Other optimizations"* section.
 
 Here's the main algorithm in [Nim](https://nim-lang.org/):
 
@@ -42,14 +44,13 @@ func findAll(
   regex: Regex,
   start: int
 ): int =
+  let limit = start
   var i = start
-  var limit = start
   while i < text.len:
-    limit = i  # rather pointless since the literal is a delimiter
     i = memchr(text, regex.lit, i)
     if i == -1:
       return -1
-    var litIdx = i
+    let litIdx = i
     i = matchPrefix(text, regex, i, limit)
     if i == -1:
       i = litIdx+1
@@ -99,8 +100,8 @@ Here are other possible optimizations:
 
   * Picking a literal —even if the prefix matches it— should take linear time as long as the prefix is bounded (i.e: does not contain repetitions), ex: `\d\wx`.
   * Picking a literal within a "one or more" repetition/repetition group should be possible, since `(abc)+` matches the same as `abc(abc)*`.
-  * It's better to pick the last literal within the first literal sequence, since that way we always try to match as many literals as possible early on, and potentially fail early. We want to keep the prefix regex as short as possible, so the picking a literal in the first sequence is best.
-  * Alternations can be optimized this very same way in some cases, ex: `bar|baz`, since both alternations have `ba` in common, `a` can be picked as the literal.
+  * It's better to pick the last literal within the first literal sequence, since that way we always try to match as many literals as possible early on, and potentially fail early. We want to keep the prefix regex as short as possible. We want the prefix to be bounded if possible. So, this sounds like a good heuristic.
+  * Alternations can be optimized this very same way in some cases, ex: `bar|baz`, since both alternations have `ba` in common, either `b` or `a` can be picked as the literal.
   * Alternations can be optimized in other cases. PCRE seems to use `memchr` or similar for up to two alternation terms. A DFA could be used to quickly match candidates instead of `memchr`, as that's a more general solution.
 
 ## Conclusion
