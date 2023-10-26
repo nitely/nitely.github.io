@@ -103,7 +103,7 @@ Here are other possible optimizations:
   * It's better to pick the last literal within the first literal sequence, since that way we always try to match as many literals as possible early on, and potentially fail early. We want to keep the prefix regex as short as possible. We want the prefix to be bounded if possible. So, this sounds like a good heuristic.
   * Alternations can be optimized this very same way in some cases, ex: `bar|baz`, since both alternations have `ba` in common, either `b` or `a` can be picked as the literal.
   * Alternations can be optimized in other cases. PCRE seems to use `memchr` or similar for up to two alternation terms. A DFA could be used to quickly match candidates instead of `memchr`, as that's a more general solution.
-  * Literals substring optimization: find the literal delimiter, and then grab its surrounding literals. The substring can be searched using `memmem` instead of `memchr`. This also has the advantage of easily supporting multi-byte utf-8 characters (unicode).
+  * Literals substring optimization: pick a literal delimiter, and then grab its surrounding literals. The substring can be searched using `memmem` instead of `memchr`. This also has the advantage of easily supporting multi-byte utf-8 characters (unicode).
 
 ## Conclusion
 
