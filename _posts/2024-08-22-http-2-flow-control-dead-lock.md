@@ -18,15 +18,15 @@ Albeit, I think it's at best a delay that can cause a single stream to slow down
 
 > Endpoints MUST read and process HTTP/2 frames from the TCP receive buffer as soon as data is available. Failure to read promptly could lead to a deadlock when critical frames, such as WINDOW_UPDATE, are not read and acted upon.
 
-The solution is simple. Keep a buffer of received data, and process all frames asynchronously. This way, receiving data frames is not tied to whatever the application does, and the rest of frames can be processed without delay.
+The solution is simple. Process all frames asynchronously. Store the data frames in an internal buffer. This way all frames can be processed as soon as they arrive.
 
 The buffer size is capped by the window size, and since there is a connection window size, all of the stream buffers put together cannot use more memory than the connection window size.
 
 The application will consume from this buffer and send a window update as soon as it does. This way, the program will only use up to two times the window size of memory. The one that is being received, and the one that is being processed.
 
-As long as the application does not take longer to process the data than it takes for the data to arrive, the data frames transfer won't block.
+This has the additional benefit of processing data frames while more data is being transfer. Which can potentially improve performance.
 
-Note only data frames are subject to flow control. The rest of the frames should be handled with other back-pressure mechanisms, such as bounded queues, to avoid resource exhaustion.
+Note, only data frames are subject to flow control. The rest of the frames should be handled with other back-pressure mechanisms, such as bounded queues, to avoid resource exhaustion.
 
 ## Bonus
 
