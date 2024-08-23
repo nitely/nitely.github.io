@@ -10,26 +10,28 @@ Each peer has its own flow control and chooses the amount of data it is willing 
 
 The receiver will send window updates telling the sender how much data it has processed since the last window update. This indicates how much data the sender is allowed to send.
 
-> What happens when both peers want to send data at the same time, but there is not enough credit in the flow control window?
-
 HTTP/2 allows full-duplex communication over a single stream, along with stream multiplexing. This means a peer can send and receive data simultaneously on a single stream and do the same on multiple streams at the same time.
 
-A deadlock occurs when both peers want to send data simultaneously, but there is not enough credit in the stream flow control window.
+A delay occurs when the window update is sent after processing the received data, depending on how long that data takes to be processed by the application.
 
-A less severe but unwanted delay occurs when the window update is sent after processing the received data, depending on how long that data takes to be processed by the application.
-
-This is somewhat mentioned in the spec:
+Albeit, I think it's at best a delay that can cause a single stream to slow down all streams, this is described as a deadlock in the spec:
 
 > Endpoints MUST read and process HTTP/2 frames from the TCP receive buffer as soon as data is available. Failure to read promptly could lead to a deadlock when critical frames, such as WINDOW_UPDATE, are not read and acted upon.
 
-The delay solution is simple. Keep a buffer of received data, and process all frames asynchronously. This way, receiving data is not tied to whatever the application does. The buffer size is capped by the window size, and since there is a connection window size, all of the stream buffers put together cannot use more memory than the connection window size.
+The solution is simple. Keep a buffer of received data, and process all frames asynchronously. This way, receiving data frames is not tied to whatever the application does, and the rest of frames can be processed without delay.
 
-The application will consume from this buffer and send a window update as soon as it does. This way, the program will only use up to two times the window size of memory. The one that is being received, and the one that is being processed. A single stream may block waiting for the data to be processed by the application, but this won't block the rest of the streams. There's no way around this; otherwise, we would use unbounded memory.
+The buffer size is capped by the window size, and since there is a connection window size, all of the stream buffers put together cannot use more memory than the connection window size.
 
-As long as the application does not take longer to process the data than it takes for the data to arrive, the delay is minimal.
+The application will consume from this buffer and send a window update as soon as it does. This way, the program will only use up to two times the window size of memory. The one that is being received, and the one that is being processed.
 
-As for the deadlock, the way around it in general is for the application to always receive and send data simultaneously. However, two peers can agree to do a ping-pong where they wait to receive/send complete messages defined by some higher-level protocol. A message protocol could be protobuf, for example.
+As long as the application does not take longer to process the data than it takes for the data to arrive, the data frames transfer won't block.
 
-Some RPC protocols define how the message exchange works to avoid deadlocks. A sender could send a stream of messages and then wait for a single message as a reply. Both could send a stream of messages in a ping-pong way. A sender could send a stream of messages where the last frame contains the end of stream flag and then wait for a stream of messages as a reply. An RPC that works like this is gRPC, for example.
+Note only data frames are subject to flow control. The rest of the frames should be handled with other back-pressure mechanisms, such as bounded queues, to avoid resource exhaustion.
 
-As a side note, only data frames are subject to flow control. The rest of the frames should be handled with other back-pressure mechanisms, such as bounded queues, to avoid resource exhaustion.
+## Bonus
+
+At the application level, a deadlock can be caused by both peers sending data on a single stream at the same time, wihtout receiving it. The way around it in general is for the application to always receive and send data simultaneously.
+
+However, two peers can agree to do a ping-pong where they wait to receive/send complete messages defined by some higher-level protocol. A message protocol could be protobuf, for example.
+
+Some RPC protocols define how the message exchange works to avoid this kind of deadlock. A sender could send a stream of messages and then wait for a single message as a reply. Both could send a stream of messages in a ping-pong way. A sender could send a stream of messages where the last frame contains the end of stream flag and then wait for a stream of messages as a reply. An RPC that works like this is gRPC, for example.
