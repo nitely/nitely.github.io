@@ -29,9 +29,7 @@ Note that this is written with some hindsight, as it was written after the imple
 - Stream frame dispatcher: Takes frames from the queue and dispatches them to the streams.
 - Stream frame receiver: There is one per stream. Received data frames are added to a stream buffer, which is consumed when the user calls `recv`. Other types of frames are processed here.
 
-These are independent asynchronous tasks that run concurrently with user code.
-
-All components are "tasks" that run independently of the user code, meaning the user cannot block the receiving of frames. However, if the user stops consuming streams, *data frames* will eventually stop arriving due to flow-control limits, while other types of frames will continue to be processed. (Of course, they could also block the async/await event loop—cough, cough.)
+These are independent asynchronous tasks that run concurrently with user code, meaning the user cannot block the receiving of frames. However, if the user stops consuming streams, *data frames* will eventually stop arriving due to flow-control limits, while other types of frames will continue to be processed. (Of course, they could also block the async/await event loop—cough, cough.)
 
 Data communication is typically handled through asynchronous bounded queues. These queues have the advantage of providing backpressure: once the queue is full, it must be awaited until an element is consumed before adding another. In this case, upstream components must wait for frames to be processed before placing a received frame into the queue. The queue also provides a buffer, allowing one frame to be processed while another is being received. This is also helpful during small spikes of received frames.
 
