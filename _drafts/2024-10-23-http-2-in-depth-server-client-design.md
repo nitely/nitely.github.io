@@ -8,14 +8,16 @@ This is a design doc for [nim-hyperx](https://github.com/nitely/nim-hyperx), an 
 
 This is not an overview of the HTTP/2 protocol. I won't go over frame types, stream states, [flow-control](https://nitely.github.io/2024/08/23/http-2-flow-control-dead-lock.html), nor [the spec](https://datatracker.ietf.org/doc/html/rfc9113) in general.
 
+Note that this is written with some hindsight, as it was written after the implementation.
+
 ## Axioms
 
-- Frames must be read and process as soon as they arrive.
-- Streams must not block processing frames.
-- Streams must not block each other. Not reading a stream in time must not block another stream, including the main stream.
-- The main stream is a special stream, and it must process frames before delivering subsequent frames to other streams. Since this can be blocking, it must do it as fast as possible, and inpendently of other streams.
-- No historical stream data must be kept at all. There is no distinction between a closed stream and one never created.
-- If a stream exists, it's alive in some way, either locally, remotely, or awaiting to be closed. This means it counts as an alive stream for the alive streams limit.
+- Frames must be read and processed as soon as they arrive.
+- Streams must not block the processing of frames.
+- Streams must not block each other. Failing to read a stream in time must not block another stream, including the main stream.
+- The main stream is a special stream and must process frames before subsequent frames are delivered to other streams. Since this can be blocking, it must be done as quickly as possible and independently of other streams.
+- No historical stream data must be kept. There is no distinction between a closed stream and one that was never created.
+- If a stream exists, it is considered alive in some way—either locally, remotely, or awaiting closure. This means it counts toward the limit of open streams.
 
 ## Data flow
 
@@ -23,77 +25,79 @@ This is not an overview of the HTTP/2 protocol. I won't go over frame types, str
 [Frames receiver] -> [Stream frame dispatcher] -> [Stream frame receiver(s)]
 ```
 
-- Frames receiver: Reads frames from socket, and puts them in the stream frame dispatcher queue.
-- Stream frame dispatcher: Takes frames from the queue, and dispatches them to the streams.
-- Stream frame receiver: There is one per stream. Received data frames are added into a stream buffer. The buffer is consumed by user calling `recv`. The rest of frames are process here.
+- Frame receiver: Reads frames from the socket and places them in the stream frame dispatcher queue.
+- Stream frame dispatcher: Takes frames from the queue and dispatches them to the streams.
+- Stream frame receiver: There is one per stream. Received data frames are added to a stream buffer, which is consumed when the user calls `recv`. Other types of frames are processed here.
 
-These are independent async tasks. They run independently of user code.
+These are independent asynchronous tasks that run concurrently with user code.
 
 ## Components
 
-### Frames receiver
+### Frame receiver
 
-Frames are continously been read from socket. This does all kind of frame checks: valid frame size, valid payload value, valid padding size. Continuation frames are received until the end, the stream of continuations may not have an end, so it must be limited to some arbitrary total size (not given in the spec).
+Frames are continuously read from the socket. This does all kind of frame checks, such as verifying frame size, payload value, and padding size. Continuation frames are received until the end, but the stream of continuations may not terminate, so it must be limited to an arbitrary total size (not specified in the spec).
 
-A failed check will throw a connection error. Usually a protocol error, or a frame size error.
+If a check fails, a connection error will be thrown, typically a protocol error or frame size error.
 
-Read frames are put into the `Stream frames dispatcher` queue. The queue is async, and once it's full, this task will block until a frame is consumed. This works as a back-pressure mechanism. Frames cannot be received much faster than they are being processed.
+Read frames are placed into the `Stream frames dispatcher` queue. The queue is asynchronous, and once it is full, this task will block until a frame is consumed. This serves as a back-pressure mechanism, ensuring frames are not received significantly faster than they are processed.
 
 ### Stream frame dispatcher
 
-Frames are taken from the queue, and dispatched to their stream. Main stream frames are process here. This is because settings need to be applied before consuming following frames.
+Frames are taken from the queue and dispatched to their respective streams. Main stream frames are processed here because settings must be applied before consuming subsequent frames.
 
-First time stream frames will create the stream. The stream is put into a queue of "received" streams, the server awaits and processes these streams. This involves calling a user provided callback. The callback usually send/recv headers, and data. It checks creating the stream won't exceed the max concurrent streams limit.
+The first time a stream frame is received, the stream is created. The stream is then added to a queue of "received" streams, which the server processes. Server processing involves calling a user-provided callback, typically to send/receive headers and data. A check ensures that creating the stream does not exceed the maximum concurrent streams limit.
 
-If the stream cannot be created (older `sid` for example), and it does not exist, it's assumed the stream is in closed state (i.e: a stream that existed, and got closed).
+If a stream cannot be created (e.g., due to an older `sid`) and does not exist, it is assumed the stream is in a closed state (i.e., a stream that existed and has been closed).
 
-Header frames are decoded here. This is because headers must be decoded in the received order, so it cannot be done concurrently by the streams. The frame payload is replaced by the decoded payload for practical purposes.
+Header frames are decoded here because headers must be decoded in the order they are received, so this cannot be done concurrently by individual streams. The frame payload is replaced by the decoded payload for practical purposes.
 
-Data frames payload size is added to the flow-control window, both the main window, and the stream window. It checks adding the payload size won't exceed the window size.
+For data frames, the payload size is added to both the main flow-control window and the stream window. It checks that adding the payload size won’t exceed the window size.
 
-Frames are put into an async value that must be consumed before taking the next frame. This used to be a queue per stream, but it got complex when receiving RST frames, as the rest of queue messages need to be processed as well, and it was also less restrictive than the spec, as it allowed to keep receiving invalid frames. An async value allows to set a value and await for it to be consumed.
+Frames are placed into an asynchronous value that must be consumed before the next frame is taken. Previously, this was managed with a queue per stream, but handling RST frames became complex since the remaining queue messages needed to be processed. Additionally, the queue allowed for the reception of invalid frames, which was less restrictive than the spec. Using an asynchronous value allows setting a value and waiting for it to be consumed before continuing.
 
 ### Stream frame receiver
 
-There is one receiver per stream. It takes frames from its own frames queue. it does the stream state transition.
+There is one receiver per stream. It takes frames from its own frame queue and handles the stream state transitions.
 
-It does the following processing of frames:
+The receiver processes the following types of frames:
 
-- RST: it closes the stream.
-- Window Update: it updates the stream flow-control window.
-- Headers: it validates the headers, and stores them into the stream state.
-- Data: it adds the data into a stream buffer. The buffer is consumed by user calling `recv`.
+- RST: Closes the stream.
+- Window Update: Updates the stream's flow-control window, allowing more data to be sent, and emits a window change signal.
+- Headers: Validates the headers and stores them in the stream state.
+- Data: Adds the data to a stream buffer, which is consumed when the user calls `recv`.
 
-When user calls `recv` data/headers, the receiver may not have received any data/header frame yet. A common async pattern is to use a signal/event that can be awaited to be set when there is data to consume. Alternatively, use a queue of frames.
+When the user calls `recv` for data/headers, the receiver may not have received any data or header frames yet. A common asynchronous pattern is to use a signal/event that can be awaited, which is set when there is data to consume. Alternatively, a queue of frames can be used.
 
 ### Components annex
 
-All components are "tasks" that run independently of what the user code does. So the user cannot block the receiving of frames. Granted they could stop consuming streams, so at some point *data frames* will stop arriving because of control-flow limits. ~~They could also block the async/await event loop; cough, cough.~~
+All components are "tasks" that run independently of the user code, meaning the user cannot block the receiving of frames. However, if the user stops consuming streams, *data frames* will eventually stop arriving due to flow-control limits, while other types of frames will continue to be processed. (Of course, they could also block the async/await event loop—cough, cough.)
 
-Data communication is often done through async bounded queues. These queues have the advantage of providing backpressure: once the queue is full, it must be awaited until an element is consumed to put one. In this case, upstream components need to wait for the frames to be processed before put a received frame. The queue also provides a buffer so a frame can be processed, while another frame is being received. It also helps when there are tiny spikes of received frames.
+Data communication is typically handled through asynchronous bounded queues. These queues have the advantage of providing backpressure: once the queue is full, it must be awaited until an element is consumed before adding another. In this case, upstream components must wait for frames to be processed before placing a received frame into the queue. The queue also provides a buffer, allowing one frame to be processed while another is being received. This is also helpful during small spikes of received frames.
 
 ## Stream State
 
-Stream state is updated on received and sent frames. There is a single stream-state per stream. The transition from one state to the next state depends on wheter the frame is being recv/sent. This because, for example: if a header with end of stream flag is received on a stream in open state, the state becomes half-closed-remote; but if it's sent instead, then it becomes half-closed-local.
+Stream state is updated upon receiving and sending frames. There is a single stream state per stream. The transition from one state to the next depends on whether the frame is being received or sent. For example, if a header with the end-of-stream flag is received on a stream in the open state, the state becomes `half-closed-remote`. However, if it is sent instead, the state becomes `half-closed-local`.
 
 ## Stream cancelation
 
-On stream cancelation, the stream needs to remain alive until the peer has received the cancelation frame. Since there is no ACK for these frames, a PING frame is sent right after, and once ACKed, the peer must have received the cancelation frame. The stream can be effectively closed then. Some frames can be received in this [in-between state](https://nitely.github.io/2024/08/20/http-2-the-missing-state.html).
+Upon stream cancellation, the stream must remain alive until the peer has received the cancellation frame. Since there is no ACK for these frames, a PING frame is sent right after. Once this PING frame is ACK'ed, it indicates that the peer must have received the cancellation frame, and the stream can then be effectively closed. Some frames may still be received during this [in-between state](https://nitely.github.io/2024/08/20/http-2-the-missing-state.html).
 
 ## API
 
 ### Recv
 
-This reads from the stream buffer, and returns the data read. The stream and client flow-control window are decreased by the amount of data read from the buffer.
+This function reads from the stream buffer and returns the data read. The stream and client flow-control windows are decreased by the amount of data read from the buffer.
 
-A window update is sent once the amount of consumed window is above half the window size. This is to avoid sending a window update per every data frame consumed. The default window size is 64KB as per the spec. Increasing the window to 256KB has shown better performance benchmarks testing throughput.
+A window update is sent once the amount of consumed data exceeds half the window size. This avoids sending a window update for every data frame consumed. The default window size is 64KB as per the spec. Increasing the window to 256KB has shown better performance in benchmarks testing throughput.
 
-Not calling `recv` in time will buffer up to "control-flow window size" of data. The default is 64KB as per the spec. The utilized window is shared among streams, so the sum of all buffers size cannot go over the limit.
+Failing to call `recv` in time will result in buffering up to the "control-flow window size" of data, with the default being 64KB as per the spec. The utilized window is shared among streams, so the total size of all buffers cannot exceed this limit.
 
 ### Send
 
-This creates a frame of the provided data, and sends it. It tries to send as much data as the control-flow window allows. If the data is too big to fit in a single frame, the data is split into multiple frames. If there is no room in the window, it awaits for a window changed signal, until there is some room. Returns once the whole data is sent.
+This function creates a frame from the provided data and sends it. It attempts to send as much data as the control-flow window allows. If the data is too large to fit in a single frame, it is split into multiple frames. If there is no room in the window, the function waits for a window change signal until there is available space. It returns once all the data has been sent.
 
 ## Closing notes
 
 My motivation to write this is mainly so I can come up with a better design in the process. Thinking about the current state of a code base, and putting it into words tends to bring new ideas to improve it. I also hope it can be useful to the reader.
+
+Until next time.
