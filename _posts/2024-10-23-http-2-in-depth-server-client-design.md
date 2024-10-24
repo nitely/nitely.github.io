@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "HTTP/2 in-depth server design"
-date: 2024-10-23 17:31:00 -0300
+date: 2024-10-24 20:51:00 -0300
 ---
 
 This is a high-level description of [nim-hyperx](https://github.com/nitely/nim-hyperx), an HTTP/2 server and client. It may be useful for HTTP/2 implementers and the curious.
