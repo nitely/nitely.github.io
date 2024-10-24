@@ -4,9 +4,9 @@ title:  "HTTP/2 in-depth server design"
 date: 2024-10-23 17:31:00 -0300
 ---
 
-This is a design doc for [nim-hyperx](https://github.com/nitely/nim-hyperx), an HTTP/2 server. It may be useful for HTTP/2 implementers and the curious.
+This is a design doc for [nim-hyperx](https://github.com/nitely/nim-hyperx), an HTTP/2 server and client. It may be useful for HTTP/2 implementers and the curious.
 
-This is not an overview of the HTTP/2 protocol. I won't go over frame types, stream states, flow-control, or the spec in general.
+This is not an overview of the HTTP/2 protocol. I won't go over frame types, stream states, [flow-control](https://nitely.github.io/2024/08/23/http-2-flow-control-dead-lock.html), nor [the spec](https://datatracker.ietf.org/doc/html/rfc9113) in general.
 
 ## Axioms
 
@@ -14,16 +14,20 @@ This is not an overview of the HTTP/2 protocol. I won't go over frame types, str
 - Streams must not block processing frames.
 - Streams must not block each other. Not reading a stream in time must not block another stream, including the main stream.
 - The main stream is a special stream, and it must process frames before delivering subsequent frames to other streams. Since this can be blocking, it must do it as fast as possible, and inpendently of other streams.
-- No historical stream data must be kept at all. A fully closed stream does not exist. There is no distinction between a closed stream, or one never created.
-- If a stream exists, it's opened in some way, either locally, remotely, or awaiting to be closed. This means it counts as an open stream for the open streams limit.
+- No historical stream data must be kept at all. There is no distinction between a closed stream and one never created.
+- If a stream exists, it's alive in some way, either locally, remotely, or awaiting to be closed. This means it counts as an alive stream for the alive streams limit.
 
 ## Data flow
 
-- Frames receiver: reads frames from socket, and puts them in the stream frame dispatcher queue.
-- Stream frame dispatcher: takes frames from the queue, and dispatches them to the streams.
-- Stream frame receiver: there is one per stream. Received data frames are added into a stream buffer. The buffer is consumed by user calling `recv`. The rest of frames are process here.
+```
+[Frames receiver] -> [Stream frame dispatcher] -> [Stream frame receiver(s)]
+```
 
-These are independent async tasks. Meaning they are spawn on connection creation, and keep running independently of user code, until the connection ends.
+- Frames receiver: Reads frames from socket, and puts them in the stream frame dispatcher queue.
+- Stream frame dispatcher: Takes frames from the queue, and dispatches them to the streams.
+- Stream frame receiver: There is one per stream. Received data frames are added into a stream buffer. The buffer is consumed by user calling `recv`. The rest of frames are process here.
+
+These are independent async tasks. They run independently of user code.
 
 ## Components
 
@@ -39,9 +43,9 @@ Read frames are put into the `Stream frames dispatcher` queue. The queue is asyn
 
 Frames are taken from the queue, and dispatched to their stream. Main stream frames are process here. This is because settings need to be applied before consuming following frames.
 
-First time stream frames will open the stream. The stream is put into a queue of "received" streams, the server awaits and processes these streams. This involves calling a user provided callback. The callback usually send/recv headers, and data. It checks opening the stream won't exceed the max concurrent streams limit.
+First time stream frames will create the stream. The stream is put into a queue of "received" streams, the server awaits and processes these streams. This involves calling a user provided callback. The callback usually send/recv headers, and data. It checks creating the stream won't exceed the max concurrent streams limit.
 
-If the stream cannot be opened (older `sid` for example), and it does not exist, it assumes the stream is in closed state.
+If the stream cannot be created (older `sid` for example), and it does not exist, it's assumed the stream is in closed state (i.e: a stream that existed, and got closed).
 
 Header frames are decoded here. This is because headers must be decoded in the received order, so it cannot be done concurrently by the streams. The frame payload is replaced by the decoded payload for practical purposes.
 
@@ -60,17 +64,33 @@ It does the following processing of frames:
 - Headers: it validates the headers, and stores them into the stream state.
 - Data: it adds the data into a stream buffer. The buffer is consumed by user calling `recv`.
 
+When user calls `recv` data/headers, the receiver may not have received any data/header frame yet. A common async pattern is to use a signal/event that can be awaited to be set when there is data to consume. Alternatively, use a queue of frames.
+
 ### Components annex
 
-All components are "tasks" that run independently of what the user code does. So the user cannot block the receiving of frames. Granted they could stop consuming streams, so at some point *data* frames will stop arriving because of control-flow limits. ~~They could also block the async/await event loop for that matter; cough, cough.~~
+All components are "tasks" that run independently of what the user code does. So the user cannot block the receiving of frames. Granted they could stop consuming streams, so at some point *data frames* will stop arriving because of control-flow limits. ~~They could also block the async/await event loop; cough, cough.~~
+
+## Stream State
+
+Stream state is updated on received and sent frames. There is a single stream-state per stream. The transition from one state to the next state depends on wheter the frame is being recv/sent. This because, for example: if a header with end of stream flag is received on a stream in open state, the state becomes half-closed-remote; but if it's sent instead, then it becomes half-closed-local.
+
+## Stream cancelation
+
+On stream cancelation, the stream needs to remain alive until the peer has received the cancelation frame. Since there is no ACK for these frames, a PING frame is sent right after, and once ACKed, the peer must have received the cancelation frame. The stream can be effectively closed then. Some frames can be received in this [in-between state](https://nitely.github.io/2024/08/20/http-2-the-missing-state.html).
 
 ## API
 
-The 2 main user API are `recv` and `send`.
+### Recv
 
-`recv` reads from the stream buffer. Not calling `recv` in time will buffer up to "control-flow window size" of data. The default is 64KB as per the spec. The utilized window is shared among streams, so the sum of all buffers size cannot go over the limit.
+This reads from the stream buffer, and returns the data read. The stream and client flow-control window are decreased by the amount of data read from the buffer.
 
-`send` creates a frame of the provided data. It tries to send as much data as the control-flow window allows. If the data is too big to fit in a single frame, the data is split into multiple frames. If there is no room in the window, it awaits for a window changed signal, until there is some room. Returns once the whole data is sent.
+A window update is sent once the amount of consumed window is above half the window size. This is to avoid sending a window update per every data frame consumed. The default window size is 64KB as per the spec. Increasing the window to 256KB has shown better performance benchmarks testing throughput.
+
+Not calling `recv` in time will buffer up to "control-flow window size" of data. The default is 64KB as per the spec. The utilized window is shared among streams, so the sum of all buffers size cannot go over the limit.
+
+### Send
+
+This creates a frame of the provided data, and sends it. It tries to send as much data as the control-flow window allows. If the data is too big to fit in a single frame, the data is split into multiple frames. If there is no room in the window, it awaits for a window changed signal, until there is some room. Returns once the whole data is sent.
 
 ## Closing notes
 
