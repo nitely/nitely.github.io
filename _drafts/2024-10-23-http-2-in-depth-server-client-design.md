@@ -70,6 +70,8 @@ When user calls `recv` data/headers, the receiver may not have received any data
 
 All components are "tasks" that run independently of what the user code does. So the user cannot block the receiving of frames. Granted they could stop consuming streams, so at some point *data frames* will stop arriving because of control-flow limits. ~~They could also block the async/await event loop; cough, cough.~~
 
+Data communication is often done through async bounded queues. These queues have the advantage of providing backpressure: once the queue is full, it must be awaited until an element is consumed to put one. In this case, upstream components need to wait for the frames to be processed before put a received frame. The queue also provides a buffer so a frame can be processed, while another frame is being received. It also helps when there are tiny spikes of received frames.
+
 ## Stream State
 
 Stream state is updated on received and sent frames. There is a single stream-state per stream. The transition from one state to the next state depends on wheter the frame is being recv/sent. This because, for example: if a header with end of stream flag is received on a stream in open state, the state becomes half-closed-remote; but if it's sent instead, then it becomes half-closed-local.
