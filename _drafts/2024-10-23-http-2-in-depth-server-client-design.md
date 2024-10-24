@@ -71,3 +71,7 @@ The 2 main user API are `recv` and `send`.
 `recv` reads from the stream buffer. Not calling `recv` in time will buffer up to "control-flow window size" of data. The default is 64KB as per the spec. The utilized window is shared among streams, so the sum of all buffers size cannot go over the limit.
 
 `send` creates a frame of the provided data. It tries to send as much data as the control-flow window allows. If the data is too big to fit in a single frame, the data is split into multiple frames. If there is no room in the window, it awaits for a window changed signal, until there is some room. Returns once the whole data is sent.
+
+## Closing notes
+
+My motivation to write this is mainly so I can come up with a better design in the process. Thinking about the current state of a code base, and putting it into words tends to bring new ideas to improve it. I also hope it can be useful to the reader.
