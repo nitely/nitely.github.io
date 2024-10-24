@@ -4,7 +4,7 @@ title:  "HTTP/2 in-depth server design"
 date: 2024-10-23 17:31:00 -0300
 ---
 
-This is a design doc for [nim-hyperx](https://github.com/nitely/nim-hyperx), an HTTP/2 server and client. It may be useful for HTTP/2 implementers and the curious.
+This is a high-level description of [nim-hyperx](https://github.com/nitely/nim-hyperx), an HTTP/2 server and client. It may be useful for HTTP/2 implementers and the curious.
 
 This is not an overview of the HTTP/2 protocol. I won't go over frame types, stream states, [flow-control](https://nitely.github.io/2024/08/23/http-2-flow-control-dead-lock.html), nor [the spec](https://datatracker.ietf.org/doc/html/rfc9113) in general.
 
@@ -22,7 +22,7 @@ Note that this is written with some hindsight, as it was written after the imple
 ## Data flow
 
 ```
-[Frames receiver] -> [Stream frame dispatcher] -> [Stream frame receiver(s)]
+[Frame receiver] -> [Stream frame dispatcher] -> [Stream frame receiver(s)]
 ```
 
 - Frame receiver: Reads frames from the socket and places them in the stream frame dispatcher queue.
@@ -30,6 +30,10 @@ Note that this is written with some hindsight, as it was written after the imple
 - Stream frame receiver: There is one per stream. Received data frames are added to a stream buffer, which is consumed when the user calls `recv`. Other types of frames are processed here.
 
 These are independent asynchronous tasks that run concurrently with user code.
+
+All components are "tasks" that run independently of the user code, meaning the user cannot block the receiving of frames. However, if the user stops consuming streams, *data frames* will eventually stop arriving due to flow-control limits, while other types of frames will continue to be processed. (Of course, they could also block the async/await event loop—cough, cough.)
+
+Data communication is typically handled through asynchronous bounded queues. These queues have the advantage of providing backpressure: once the queue is full, it must be awaited until an element is consumed before adding another. In this case, upstream components must wait for frames to be processed before placing a received frame into the queue. The queue also provides a buffer, allowing one frame to be processed while another is being received. This is also helpful during small spikes of received frames.
 
 ## Components
 
@@ -45,7 +49,7 @@ Read frames are placed into the `Stream frames dispatcher` queue. The queue is a
 
 Frames are taken from the queue and dispatched to their respective streams. Main stream frames are processed here because settings must be applied before consuming subsequent frames.
 
-The first time a stream frame is received, the stream is created. The stream is then added to a queue of "received" streams, which the server processes. Server processing involves calling a user-provided callback, typically to send/receive headers and data. A check ensures that creating the stream does not exceed the maximum concurrent streams limit.
+The first time a stream frame is received, the stream is created. A check ensures that creating the stream does not exceed the maximum concurrent streams limit. The stream is then added to a queue of "received" streams, which the server processes. Server processing involves calling a user-provided callback, typically to send/receive headers and data.
 
 If a stream cannot be created (e.g., due to an older `sid`) and does not exist, it is assumed the stream is in a closed state (i.e., a stream that existed and has been closed).
 
@@ -67,12 +71,6 @@ The receiver processes the following types of frames:
 - Data: Adds the data to a stream buffer, which is consumed when the user calls `recv`.
 
 When the user calls `recv` for data/headers, the receiver may not have received any data or header frames yet. A common asynchronous pattern is to use a signal/event that can be awaited, which is set when there is data to consume. Alternatively, a queue of frames can be used.
-
-### Components annex
-
-All components are "tasks" that run independently of the user code, meaning the user cannot block the receiving of frames. However, if the user stops consuming streams, *data frames* will eventually stop arriving due to flow-control limits, while other types of frames will continue to be processed. (Of course, they could also block the async/await event loop—cough, cough.)
-
-Data communication is typically handled through asynchronous bounded queues. These queues have the advantage of providing backpressure: once the queue is full, it must be awaited until an element is consumed before adding another. In this case, upstream components must wait for frames to be processed before placing a received frame into the queue. The queue also provides a buffer, allowing one frame to be processed while another is being received. This is also helpful during small spikes of received frames.
 
 ## Stream State
 
