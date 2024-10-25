@@ -8,6 +8,8 @@ This is a high-level description of [nim-hyperx](https://github.com/nitely/nim-h
 
 This is not an overview of the HTTP/2 protocol. I won't go over frame types, stream states, [flow-control](https://nitely.github.io/2024/08/23/http-2-flow-control-dead-lock.html), nor [the spec](https://datatracker.ietf.org/doc/html/rfc9113) in general.
 
+This is also not a guide or a how-to for building a server/client, as I believe that would require a book rather than a blog post. However, the [core](https://github.com/nitely/nim-hyperx/blob/master/src/hyperx/clientserver.nim) of nim-hyperx is ~1K LoC and can be read alongside this post.
+
 Note that this is written with some hindsight, as it was written after the implementation.
 
 ## Axioms
