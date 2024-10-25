@@ -78,7 +78,9 @@ Stream state is updated upon receiving and sending frames. There is a single str
 
 ## Stream cancelation
 
-Upon stream cancellation, the stream must remain alive until the peer has received the cancellation frame. Since there is no ACK for these frames, a PING frame is sent right after. Once this PING frame is ACK'ed, it indicates that the peer must have received the cancellation frame, and the stream can then be effectively closed. Some frames may still be received during this [in-between state](https://nitely.github.io/2024/08/20/http-2-the-missing-state.html).
+Upon stream cancellation (RST frame sent), the stream must remain alive until the peer has received the cancellation frame. Since there is no ACK for RST frames, a PING frame is sent right after. Once this PING frame is ACK'ed, it indicates that the peer must have received the cancellation frame, and the stream can then be effectively closed. Some frames may still be received during this [in-between state](https://nitely.github.io/2024/08/20/http-2-the-missing-state.html).
+
+Note that the ACK'ed PING payload must contain the same data as the sent PING. This allows it to include the stream identifier that sent it, enabling the main stream to notify the relevant stream through an asynchronous event.
 
 ## API
 
@@ -88,7 +90,7 @@ This function reads from the stream buffer and returns the data read. The stream
 
 A window update is sent once the amount of consumed data exceeds half the window size. This avoids sending a window update for every data frame consumed. The default window size is 64KB as per the spec. Increasing the window to 256KB has shown better performance in benchmarks testing throughput.
 
-Failing to call `recv` in time will result in buffering up to the "control-flow window size" of data, with the default being 64KB as per the spec. The utilized window is shared among streams, so the total size of all buffers cannot exceed this limit.
+Failing to call `recv` in time will result in buffering up to the *control-flow window size* of data, with the default being 64KB as per the spec. The utilized window is shared among streams, so the total size of all buffers combined cannot exceed this limit.
 
 ### Send
 
