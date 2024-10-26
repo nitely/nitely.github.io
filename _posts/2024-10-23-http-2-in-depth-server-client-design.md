@@ -18,8 +18,8 @@ Note that this is written with some hindsight, as it was written after the imple
 - Streams must not block the processing of frames.
 - Streams must not block each other. Failing to read a stream in time must not block another stream, including the main stream.
 - The main stream is a special stream and must process frames before subsequent frames are delivered to other streams. Since this can be blocking, it must be done as quickly as possible and independently of other streams.
-- No historical stream data must be kept. There is no distinction between a closed stream and one that was never created.
-- If a stream exists, it is considered alive in some way—either locally, remotely, or awaiting closure. This means it counts toward the limit of open streams.
+- No historical stream information must be kept. There is no distinction between a closed stream and one that was never created.
+- If a stream exists, it is considered alive in some way—either locally, remotely, or awaiting closure. This means it counts toward the limit of max concurrent streams.
 
 ## Data flow
 
@@ -31,33 +31,33 @@ Note that this is written with some hindsight, as it was written after the imple
 - Stream frame dispatcher: Takes frames from the queue and dispatches them to the streams.
 - Stream frame receiver: There is one per stream. Received data frames are added to a stream buffer, which is consumed when the user calls `recv`. Other types of frames are processed here.
 
-These are independent asynchronous tasks that run concurrently with user code, meaning the user cannot block the receiving of frames. However, if the user stops consuming streams, *data frames* will eventually stop arriving due to flow-control limits, while other types of frames will continue to be processed. (Of course, they could also block the async/await event loop—cough, cough.)
+These are independent asynchronous tasks that run concurrently, meaning the user cannot block the receiving of frames. If the user stops consuming streams, *data frames* will eventually stop arriving due to flow-control limits, while other types of frames will continue to be processed. (Of course, the user could block the async/await event loop—cough, cough.)
 
-Data communication is typically handled through asynchronous bounded queues. These queues have the advantage of providing backpressure: once the queue is full, it must be awaited until an element is consumed before adding another. In this case, upstream components must wait for frames to be processed before placing a received frame into the queue. The queue also provides a buffer, allowing one frame to be processed while another is being received. This is also helpful during small spikes of received frames.
+Data communication is typically handled through asynchronous bounded queues. The queue provides backpressure: once it is full, the task will await until a frame is consumed before putting the new frame. This ensures frames are not received significantly faster than they are processed. The queue also servers as a buffer, allowing one frame to be processed while another is being received. This is also helpful during small spikes of received frames.
 
 ## Components
 
 ### Frame receiver
 
-Frames are continuously read from the socket. This does all kind of frame checks, such as verifying frame size, payload value, and padding size. Continuation frames are received until the end, but the stream of continuations may not terminate, so it must be limited to an arbitrary total size (not specified in the spec).
+Frames are continuously read from the socket. This does all kind of frame checks, such as verifying frame size, payload value, and padding size. Continuation frames are received until the end, but the stream of continuations may be infinite, so it must be limited to an arbitrary total size (not specified in the spec).
 
 If a check fails, a connection error will be thrown, typically a protocol error or frame size error.
 
-Read frames are placed into the `Stream frames dispatcher` queue. The queue is asynchronous, and once it is full, this task will block until a frame is consumed. This serves as a back-pressure mechanism, ensuring frames are not received significantly faster than they are processed.
+Read frames are put into the `Stream frames dispatcher` queue.
 
 ### Stream frame dispatcher
 
 Frames are taken from the queue and dispatched to their respective streams. Main stream frames are processed here because settings must be applied before consuming subsequent frames.
 
-The first time a stream frame is received, the stream is created. A check ensures that creating the stream does not exceed the maximum concurrent streams limit. The stream is then added to a queue of "received" streams, which the server processes. Server processing involves calling a user-provided callback, typically to send/receive headers and data.
+The first time a stream frame is received, the stream is created. A check ensures that creating the stream does not exceed the maximum concurrent streams limit. The stream is then added to a *queue of created streams*, which the server processes. Server processing involves calling a user-provided callback, typically to send/receive headers and data.
 
 If a stream cannot be created (e.g., due to an older `sid`) and does not exist, it is assumed the stream is in a closed state (i.e., a stream that existed and has been closed).
 
 Header frames are decoded here because headers must be decoded in the order they are received, so this cannot be done concurrently by individual streams. The frame payload is replaced by the decoded payload for practical purposes.
 
-For data frames, the payload size is added to both the main flow-control window and the stream window. It checks that adding the payload size won’t exceed the window size.
+For data frames, the payload size is added to both the main flow-control window and the stream window. A check ensures that adding the payload size won’t exceed the window size.
 
-Frames are placed into an asynchronous value that must be consumed before the next frame is taken. Previously, this was managed with a queue per stream, but handling RST frames became complex since the remaining queue messages needed to be processed. Additionally, the queue allowed for the reception of invalid frames, which was less restrictive than the spec. Using an asynchronous value allows setting a value and waiting for it to be consumed before continuing.
+Frames are put into an asynchronous value that must be consumed before the next frame is taken. Previously, this was managed with a queue per stream, but handling RST frames became complex since the remaining queue messages needed to be processed. Additionally, the queue allowed for the reception of invalid frames, which was less restrictive than the spec. Using an asynchronous value allows setting a value and waiting for it to be consumed before continuing.
 
 ### Stream frame receiver
 
@@ -66,7 +66,7 @@ There is one receiver per stream. It takes frames from its own frame queue and h
 The receiver processes the following types of frames:
 
 - RST: Closes the stream.
-- Window Update: Updates the stream's flow-control window, allowing more data to be sent, and emits a window change signal.
+- Window Update: Updates the stream's flow-control window, allowing more data to be sent, and emits a *window changed* signal.
 - Headers: Validates the headers and stores them in the stream state.
 - Data: Adds the data to a stream buffer, which is consumed when the user calls `recv`.
 
@@ -80,7 +80,7 @@ Stream state is updated upon receiving and sending frames. There is a single str
 
 Upon stream cancellation (RST frame sent), the stream must remain alive until the peer has received the cancellation frame. Since there is no ACK for RST frames, a PING frame is sent right after. Once this PING frame is ACK'ed, it indicates that the peer must have received the cancellation frame, and the stream can then be effectively closed. Some frames may still be received during this [in-between state](https://nitely.github.io/2024/08/20/http-2-the-missing-state.html).
 
-Note that the ACK'ed PING payload must contain the same data as the sent PING. This allows it to include the stream identifier that sent it, enabling the main stream to notify the relevant stream through an asynchronous event.
+Note that the ACK'ed PING payload contains the same data as the sent PING. This data can include the stream identifier that sent it, enabling the main stream to notify the relevant stream through an asynchronous event once ACK'ed.
 
 ## API
 
