@@ -10,7 +10,7 @@ This is not an overview of the HTTP/2 protocol. I won't go over frame types, str
 
 This is also not a guide or a how-to for building a server/client, as I believe that would require a book rather than a blog post. However, the [core](https://github.com/nitely/nim-hyperx/blob/master/src/hyperx/clientserver.nim) of nim-hyperx is ~1K LoC and can be read alongside this post.
 
-Note that this is written with some hindsight, as it was written after the implementation.
+Note that this was written in hindsight, after the implementation.
 
 ## Axioms
 
@@ -33,7 +33,7 @@ Note that this is written with some hindsight, as it was written after the imple
 
 These are independent asynchronous tasks that run concurrently, meaning the user cannot block the receiving of frames. If the user stops consuming streams, *data frames* will eventually stop arriving due to flow-control limits, while other types of frames will continue to be processed. (Of course, the user could block the async/await event loop—cough, cough.)
 
-Data communication is typically handled through asynchronous bounded queues. The queue provides backpressure: once it is full, the task will await until a frame is consumed before putting the new frame. This ensures frames are not received significantly faster than they are processed. The queue also servers as a buffer, allowing one frame to be processed while another is being received. This is also helpful during small spikes of received frames.
+Data communication is typically handled through asynchronous bounded queues. The queue provides backpressure: once it is full, the task will await until a frame is consumed before putting the new frame. This ensures frames are not received significantly faster than they are processed. The queue also serves as a buffer, allowing one frame to be processed while another is being received. This is also helpful during small spikes of received frames.
 
 ## Components
 
@@ -47,13 +47,13 @@ Read frames are put into the `Stream frames dispatcher` queue.
 
 ### Stream frame dispatcher
 
-Frames are taken from the queue and dispatched to their respective streams. Main stream frames are processed here because settings must be applied before consuming subsequent frames.
+Frames are taken from the queue and dispatched to their respective streams. Main stream frames are processed here because settings must be applied before processing subsequent frames.
 
 The first time a stream frame is received, the stream is created. A check ensures that creating the stream does not exceed the maximum concurrent streams limit. The stream is then added to a *queue of created streams*, which the server processes. Server processing involves calling a user-provided callback, typically to send/receive headers and data.
 
 If a stream cannot be created (e.g., due to an older `sid`) and does not exist, it is assumed the stream is in a closed state (i.e., a stream that existed and has been closed).
 
-Header frames are decoded here because headers must be decoded in the order they are received, so this cannot be done concurrently by individual streams. The frame payload is replaced by the decoded payload for practical purposes.
+Header frames are decoded here as they must be decoded in the order they are received, so this cannot be done concurrently by individual streams. The frame payload is replaced by the decoded payload for practical purposes.
 
 For data frames, the payload size is added to both the main flow-control window and the stream window. A check ensures that adding the payload size won’t exceed the window size.
 
