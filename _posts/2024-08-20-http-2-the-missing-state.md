@@ -12,7 +12,7 @@ The actual *closed* state does not allow this. So, while this paragraph is in th
 
 Sending an RST in *half-closed (local)* state transitions to this *almost-closed* state. 
 
-The *reserved-remote/local* states require similar care, but given push-promise has been largely disabled by server/clients, I got away with not implementing these states trasitions.
+The *reserved-remote/local* states require similar care. However, these states can be omitted in server/client implementations that won't support push-promise. Push-promise support is optional, and it has been largely disabled by clients for not showing improvements over the 103 response code.
 
 A stream in *closed* state must not keep a stream resource around, while one that is in this *almost-closed* state must, and it must count as an active stream, until the peer has received the RST frame. Otherwise, we would be open to a resource exhaustion attack. We can make sure they received the RST by sending a PING after, and waiting for the response.
 
