@@ -4,9 +4,9 @@ title:  "HTTP/2 in-depth server design"
 date: 2024-10-24 20:51:00 -0300
 ---
 
-> Last updated on 2025-02-12.
-
 This is a high-level description of [nim-hyperx](https://github.com/nitely/nim-hyperx), an HTTP/2 server & client. It may be useful for HTTP/2 implementers and the curious.
+
+> Last updated on 2025-02-12.
 
 The [core](https://github.com/nitely/nim-hyperx/blob/master/src/hyperx/clientserver.nim) of nim-hyperx is ~1K LoC and can be read alongside this post.
 
