@@ -4,100 +4,67 @@ title:  "HTTP/2 in-depth server design"
 date: 2024-10-24 20:51:00 -0300
 ---
 
-This is a high-level description of [nim-hyperx](https://github.com/nitely/nim-hyperx), an HTTP/2 server and client. It may be useful for HTTP/2 implementers and the curious.
+> Last updated on 2025-02-12.
+
+This is a high-level description of [nim-hyperx](https://github.com/nitely/nim-hyperx), an HTTP/2 server & client. It may be useful for HTTP/2 implementers and the curious.
+
+The [core](https://github.com/nitely/nim-hyperx/blob/master/src/hyperx/clientserver.nim) of nim-hyperx is ~1K LoC and can be read alongside this post.
 
 This is not an overview of the HTTP/2 protocol. I won't go over frame types, stream states, [flow-control](https://nitely.github.io/2024/08/23/http-2-flow-control-dead-lock.html), nor [the spec](https://datatracker.ietf.org/doc/html/rfc9113) in general.
-
-This is also not a guide or a how-to for building a server/client, as I believe that would require a book rather than a blog post. However, the [core](https://github.com/nitely/nim-hyperx/blob/master/src/hyperx/clientserver.nim) of nim-hyperx is ~1K LoC and can be read alongside this post.
-
-Note that this was written in hindsight, after the implementation.
 
 ## Axioms
 
 - Frames must be read and processed as soon as they arrive.
 - Streams must not block the processing of frames.
-- Streams must not block each other. Failing to read a stream in time must not block another stream, including the main stream.
-- The main stream is a special stream and must process frames before subsequent frames are delivered to other streams. Since this can be blocking, it must be done as quickly as possible and independently of other streams.
+- Streams must not block each other. Failing to read a stream in time must not block any other stream.
+- The main stream must process frames before subsequent frames are delivered to other streams.
 - No historical stream information must be kept. There is no distinction between a closed stream and one that was never created.
 - If a stream exists, it is considered alive in some way—either locally, remotely, or awaiting closure. This means it counts toward the limit of max concurrent streams.
 
-## Data flow
+## Lightweight Threads
 
-```
-[Frame receiver] -> [Stream frame dispatcher] -> [Stream frame receiver(s)]
-```
+Most (all?) HTTP/2 servers & clients are implemented on top of user-level threads. In nim-hyperx, non-blocking async/await is used as the concurrency model. The design described in this article can be applied to other models, such as coroutines/fibers. In theory one could use native threads alone, but note a single connection can open up to 100 streams, and the streams must be able to run independently of each other, meaning probably in their own thread, which could be too expensive and so scale poorly.
 
-- Frame receiver: Reads frames from the socket and places them in the stream frame dispatcher queue.
-- Stream frame dispatcher: Takes frames from the queue and dispatches them to the streams.
-- Stream frame receiver: There is one per stream. Received data frames are added to a stream buffer, which is consumed when the user calls `recv`. Other types of frames are processed here.
+## Using queues/channels for communication
 
-These are independent asynchronous tasks that run concurrently, meaning the user cannot block the receiving of frames. If the user stops consuming streams, *data frames* will eventually stop arriving due to flow-control limits, while other types of frames will continue to be processed. (Of course, the user could block the async/await event loop—cough, cough.)
+Asynchronous units—futures, coroutines, fibers, etc—such as socket reader, the main stream, and each stream middleware (`*`) can communicate using queues/channels. This means, the socket reader will read a frame, put it in a queue and go back to reading the next frame. The main stream will consume from the queue, process the frame and send a response (ex: settings ACK, PING ACK). A stream will consume from a queue, process the frame and put the data into a queue for the user to consume.
 
-Data communication is typically handled through asynchronous bounded queues. The queue provides backpressure: once it is full, the task will await until a frame is consumed before putting the new frame. This ensures frames are not received significantly faster than they are processed. The queue also serves as a buffer, allowing one frame to be processed while another is being received. This is also helpful during small spikes of received frames.
+In nim-hyperx, all communication between these units are done through unbuffered channels. This means sending through a channel will block until another unit receives the value. Using buffered channels—or a bounded queue—showed no performance improvement in nim-hyperx; and it created funny race conditions: remember main stream frames must be processed before subsequent frames are delivered to other streams? consider what happens when a stream has unprocessed "old" frames in the channel but a newer main stream frame gets processed before them.
 
-## Components
+One good thing about async/await is that futures are cooperative/non-preemptive; they need to explicitly yield to give control to the next future callback. This means the main stream can receive a frame, process it, and yield control when either doing I/O (sending an ACK) or waiting on the channel for the next frame. Asynchronous preemptive schedulers may required additional synchronization mechanisms, or just process the main stream in the same coroutine/fiber as the socket reader, but likely send the ACK's asynchronously so sending does not block receiving new frames.
 
-### Frame receiver
+## Server.run()
 
-Frames are continuously read from the socket. This does all kind of frame checks, such as verifying frame size, payload value, and padding size. Continuation frames are received until the end, but the stream of continuations may be infinite, so it must be limited to an arbitrary total size (not specified in the spec).
+The user must supply a callback that gets called on a stream open event. When a frame for a new stream is received, a new stream resource is created and put into a channel. There is a future which only job is receiving on this channel and creating a future for the user-callback. The user-callback gets passed the stream resource, which can be used to receive headers & data, and send headers & data!. These headers/data are received asynchronously by receiving on a channel. Note we are talking about regular headers & data, and not frames. Remember the future which only job is receiving new streams and creating future callbacks? it has an additional job: create a future to process the frames for that stream, and put the data payload and the decoded headers into the user-callback channel (these are two distinct channels, btw).
 
-If a check fails, a connection error will be thrown, typically a protocol error or frame size error.
+Did you notice headers need to be decoded? this is because plain-text headers—as seen in HTTP/1—are encoded using something called HPACK, which is a compression algorithm (mostly just a static table mapping for common headers, a dynamic table cache that is usually is misused, since cache trashing is a thing, and Huffman code). Accordingly, headers need to be encoded when sending.
 
-Read frames are put into the `Stream frames dispatcher` queue.
+There is more! a future for processing main stream frames asynchronously must be created; processed frames includes PINGs, settings, control-flow window updates, and Go-Away. Go-Aways are sent when the client/server is closing the connection, sometimes gracefully (AKA the `NO_ERROR` code)—a server will refuse to process new frames after this, but it will keep processing active streams until they end—, sometimes due to an error—this can be a protocol error when sending an unexpected frame, or a malformed frame, a header compression error, a control-flow violation, etc—. PINGs are... PINGS! for every PING, and ACK must be sent as response. Some tend to believe PINGs can only be sent on the main stream, so they cannot be use to PING a stream to check if it's alive, this is true, but not entirely: PING contain a payload, and the exact same received payload must be included in the ACK, this mean they can be used for anything, including adding streams IDs to PING streams! and making these streams PING back. In nim-hyperx, PINGs are used after sending a stream RST frame, so once the PING is ACK'ed we know for sure the peer received the RST. Settings are connection wide settings such as frame max size, max concurrent streams, etc. Control-flow window updates are changes to the current window size that affects the connection wide flow-control window, and each individual stream flow-control window.
 
-### Stream frame dispatcher
+It is worth noting that flow-control is crucial to allow the user read from the stream at its own pace, avoiding overwhelming the server/client. Only up to control-flow window size of data can be received on a given stream (and connection). Once this window is exhausted no more data will be received. When the user reads data from the stream, a window update is sent to the peer to let them know they can send more data (equal to the amount read). The same applies for the sender; there are two control-flow windows, one for receiving, and one for sending. When sending, we can send as much as the available amount in the window allows, and wait for a window update to send more data. This is hidden from the user; the user may want to send more data than the full window allows, that's ok, the data gets sent in multiple frames if needed.
 
-Frames are taken from the queue and dispatched to their respective streams. Main stream frames are processed here because settings must be applied before processing subsequent frames.
+It'd be wasteful to send a new window update for every little data read, given the window size is usually much greater than a single frame. So, a window update is sent once a given amount of the window size has been consumed. In nim-hyperx, this is half the window size.
 
-The first time a stream frame is received, the stream is created. A check ensures that creating the stream does not exceed the maximum concurrent streams limit. The stream is then added to a *queue of created streams*, which the server processes. Server processing involves calling a user-provided callback, typically to send/receive headers and data.
+The stream middleware will receive frames; for data frames, it puts the data into a buffer that will later be read by the user. In nim-hyperx, a channel is used to notify there is data to read from the buffer. The user call to receive data will wait for it if there is no data in the buffer.
 
-If a stream cannot be created (e.g., due to an older `sid`) and does not exist, it is assumed the stream is in a closed state (i.e., a stream that existed and has been closed).
+## Recap
 
-Header frames are decoded here as they must be decoded in the order they are received, so this cannot be done concurrently by individual streams. The frame payload is replaced by the decoded payload for practical purposes.
+There is one single frames receiver: it reads frames from the socket, it dispatches it to the open streams; if the stream is not open, it puts the stream into a channel. There is a single just-opened stream reader, which creates a future/coroutine/fiber for the user-callback, so the user can process the stream as they see fit—this is minimally reading headers, data, and sending headers, data. There is one stream middleware *per* stream, they read frames, process them into decoded headers, data, and put them into buffers, for the user to read. There is one main stream future to read and process main stream frames.
 
-For data frames, the payload size is added to both the main flow-control window and the stream window. A check ensures that adding the payload size won’t exceed the window size.
+Note user-callbacks are for servers. What about clients? these are simpler, as it's the user opening the streams in their own future/coroutine/fiber.
 
-Frames are put into an asynchronous value that must be consumed before the next frame is taken. Previously, this was managed with a queue per stream, but handling RST frames became complex since the remaining queue messages needed to be processed. Additionally, the queue allowed for the reception of invalid frames, which was less restrictive than the spec. Using an asynchronous value allows setting a value and waiting for it to be consumed before continuing.
+## BONUS
 
-### Stream frame receiver
-
-There is one receiver per stream. It takes frames from its own frame queue and handles the stream state transitions.
-
-The receiver processes the following types of frames:
-
-- RST: Closes the stream.
-- Window Update: Updates the stream's flow-control window, allowing more data to be sent, and emits a *window changed* signal.
-- Headers: Validates the headers and stores them in the stream state.
-- Data: Adds the data to a stream buffer, which is consumed when the user calls `recv`.
-
-When the user calls `recv` for data/headers, the receiver may not have received any data or header frames yet. A common asynchronous pattern is to use a signal/event that can be awaited, which is set when there is data to consume. Alternatively, a queue of frames can be used.
-
-## Stream State
+### Stream State
 
 Stream state is updated upon receiving and sending frames. There is a single stream state per stream. The transition from one state to the next depends on whether the frame is being received or sent. For example, if a header with the end-of-stream flag is received on a stream in the open state, the state becomes `half-closed-remote`. However, if it is sent instead, the state becomes `half-closed-local`.
 
-## Stream cancelation
+### Stream cancelation
 
-Upon stream cancellation (RST frame sent), the stream must remain alive until the peer has received the cancellation frame. Since there is no ACK for RST frames, a PING frame is sent right after. Once this PING frame is ACK'ed, it indicates that the peer must have received the cancellation frame, and the stream can then be effectively closed. Some frames may still be received during this [in-between state](https://nitely.github.io/2024/08/20/http-2-the-missing-state.html).
+Upon stream cancelation (RST frame sent), the stream must remain alive until the peer has received the cancelation frame. Since there is no ACK for RST frames, a PING frame is sent right after. Once this PING frame is ACK'ed, it indicates that the peer must have received the cancelation frame, and the stream can then be effectively closed. Some frames may still be received during this [in-between state](https://nitely.github.io/2024/08/20/http-2-the-missing-state.html).
 
 Note that the ACK'ed PING payload contains the same data as the sent PING. This data can include the stream identifier that sent it, enabling the main stream to notify the relevant stream through an asynchronous event once ACK'ed.
 
-## API
-
-### Recv
-
-This function reads from the stream buffer and returns the data read. The stream and client flow-control windows are decreased by the amount of data read from the buffer.
-
-A window update is sent once the amount of consumed data exceeds half the window size. This avoids sending a window update for every data frame consumed. The default window size is 64KB as per the spec. Increasing the window to 256KB has shown better performance in benchmarks testing throughput.
-
-Failing to call `recv` in time will result in buffering up to the *control-flow window size* of data, with the default being 64KB as per the spec. The utilized window is shared among streams, so the total size of all buffers combined cannot exceed this limit.
-
-### Send
-
-This function creates a frame from the provided data and sends it. It attempts to send as much data as the control-flow window allows. If the data is too large to fit in a single frame, it is split into multiple frames. If there is no room in the window, the function waits for a window change signal until there is available space. It returns once all the data has been sent.
-
 ## Closing notes
 
-My motivation to write this is mainly so I can come up with a better design in the process. Thinking about the current state of a code base, and putting it into words tends to bring new ideas to improve it. I also hope it can be useful to the reader.
-
-Until next time.
+I hope you enjoyed this article and found it useful. I may update it from time to time. Until next time.
