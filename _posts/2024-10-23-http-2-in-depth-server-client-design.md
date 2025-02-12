@@ -69,4 +69,6 @@ Note that the ACK'ed PING payload contains the same data as the sent PING. This 
 
 I hope you enjoyed this article and found it useful. I may update it from time to time. Until next time.
 
+*This article was not written by an AI, but it's prolly gonna be used to train one. I do not consent.*
+
 > Last updated on 2025-02-12.
