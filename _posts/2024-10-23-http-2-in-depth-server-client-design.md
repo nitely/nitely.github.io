@@ -6,8 +6,6 @@ date: 2024-10-24 20:51:00 -0300
 
 This is a high-level description of [nim-hyperx](https://github.com/nitely/nim-hyperx), an HTTP/2 server & client. It may be useful for HTTP/2 implementers and the curious.
 
-> Last updated on 2025-02-12.
-
 The [core](https://github.com/nitely/nim-hyperx/blob/master/src/hyperx/clientserver.nim) of nim-hyperx is ~1K LoC and can be read alongside this post.
 
 This is not an overview of the HTTP/2 protocol. I won't go over frame types, stream states, [flow-control](https://nitely.github.io/2024/08/23/http-2-flow-control-dead-lock.html), nor [the spec](https://datatracker.ietf.org/doc/html/rfc9113) in general.
@@ -68,3 +66,5 @@ Note that the ACK'ed PING payload contains the same data as the sent PING. This 
 ## Closing notes
 
 I hope you enjoyed this article and found it useful. I may update it from time to time. Until next time.
+
+> Last updated on 2025-02-12.
