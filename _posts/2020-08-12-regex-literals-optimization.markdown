@@ -37,7 +37,7 @@ These constraints can be relaxed in some cases, see the *"Other optimizations"* 
 
 Here's the main algorithm in [Nim](https://nim-lang.org/):
 
-{% highlight nim %}
+```nim
 func findAll(
   matches: var Matches,
   text: string,
@@ -61,7 +61,7 @@ func findAll(
       if matches.len > 0:
         return i  # this is used as "start" to resume the matching
   return -1
-{% endhighlight %}
+```
 
 A given character may be consumed only twice, once by the backward prefix match, and a second time by the forward scan. Hence the algorithm runs in linear time.
 
