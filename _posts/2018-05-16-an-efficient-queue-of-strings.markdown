@@ -19,7 +19,7 @@ I did some research but I didn't have any luck finding an algorithm that would m
 
 ## The Queue
 
-{% highlight nim %}
+```nim
 type
   StrQueue = object
     ## An efficient queue of strings.
@@ -37,7 +37,7 @@ type
     head: int
     tail: int
     i: int
-{% endhighlight %}
+```
 
 This code is written in [Nim](https://nim-lang.org/), but it should be easy
 to read for those coming from any procedural language.
@@ -49,7 +49,7 @@ By doing *modulo* we wrap-around when the actual end of the vector is reached. L
 
 Note that since this is a *circular queue* the tail/head terms are reversed from a regular queue. This is because the used portion of it resembles a snake going around in a circle and so the head is the end at which elements are added, or [so I've read...](https://softwareengineering.stackexchange.com/questions/144477/on-a-queue-which-end-is-the-head)
 
-{% highlight nim %}
+```nim
 proc add(q: var StrQueue, x: string) =
   while q.len > 0 and x.len > q.left:
     discard q.pop()
@@ -63,11 +63,11 @@ proc add(q: var StrQueue, x: string) =
     q.pos = (q.pos+1) mod q.s.len
   inc(q.filled, x.len)
   assert q.filled <= q.s.len
-{% endhighlight %}
+```
 
 To remove an element from the end of the queue, we take the element at the tail and then the tail is incremented, moving the tail to the previous element.
 
-{% highlight nim %}
+```nim
 proc pop(q: var StrQueue): Slice[int] =
   assert q.i > 0
   result = q.b[q.tail]
@@ -75,7 +75,7 @@ proc pop(q: var StrQueue): Slice[int] =
   dec q.i
   dec(q.filled, result.b-result.a)
   assert q.filled >= 0
-{% endhighlight %}
+```
 
 ## Optimizations
 
