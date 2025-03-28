@@ -11,9 +11,9 @@ Write coalescing is an I/O optimization technique where multiple small writes ar
 
 Most OS implement the [Nagle's Algorithm](https://en.wikipedia.org/wiki/Nagle%27s_algorithm), which improves efficiency of TCP/IP networks by reducing the number of packets that need to be sent over the network. It has a [bad interaction](https://en.wikipedia.org/wiki/Nagle%27s_algorithm#Interaction_with_delayed_ACK) with another algorithm called [delayed ACK](https://en.wikipedia.org/wiki/TCP_delayed_acknowledgment) which can cause a delay of up to 500 milliseconds.
 
-In nim-hyperx this has always been disabled, since I wouldn't ever send tinygrams, and I'd hope nim-hyperx users are not doing that either.
+In [nim-hyperx](https://github.com/nitely/nim-hyperx) this has always been disabled, since I wouldn't ever send tinygrams, and I'd hope nim-hyperx users are not doing that either.
 
-A few weeks ago a Nim user was having [a performance issue](https://github.com/nim-lang/Nim/issues/24741) when using Nim's std HTTP client. I immediately thought this has to be the Nagle's Algorithm biding—this is one of those things that if you know, you know—and indeed it was.
+A few weeks ago a [Nim](https://nim-lang.org/) user was having [a performance issue](https://github.com/nim-lang/Nim/issues/24741) when using Nim's std HTTP client. I immediately thought this has to be the Nagle's Algorithm doing—this is one of those things that if you know, you know—and indeed it was.
 
 While I was reading on the algorithm once again, I thought it was a really good idea, and it got me thinking, can I implement this in my application code?
 
@@ -34,22 +34,34 @@ The relevant nim-hyperx code looks like this:
 # and runs until the client is closed
 proc sendTask(client: Client) {.async.} =
   var buf = ""
-  while true:
+  while not client.isClosed:
     while client.sendBuf.len == 0:
-      client.sendBufDrainSig.trigger()
-      await client.sendBufSig.waitFor()
+      await client.sendBufSig.waitFor()  # Wait buffer changed signal
     swap buf, client.sendBuf
     client.sendBuf.setLen 0
-    client.sendBufDrainSig.trigger()
+    client.sendBufDrainSig.trigger()  # Fire buffer flushed signal
     check not client.sock.isClosed, newConnClosedError()
     await client.sock.send(addr buf[0], buf.len)
 
 # This is called by streams
 proc send(client: Client, frm: Frame) {.async.} =
   client.sendBuf.add frm  # Add the frame to the buffer
-  client.sendBufSig.trigger()  # Fire send buffer ready signal
-  if client.sendBuf.len > 64 * 1024:  # Wait for the buffer to be flushed if size > 64KB
+  client.sendBufSig.trigger()  # Fire buffer changed signal
+  if client.sendBuf.len > 64 * 1024:
+    # Wait for the buffer to be flushed if size > 64KB.
     await client.sendBufDrainSig.waitFor()
 ```
 
+The buffer can grow higher than 64KB, but it's still memory bounded. This is checked after adding to the buffer to ensure frames are being added in send call order. The buffer max size is `64KB+number_of_streams*max_frame_size`.
+
+This optimization resulted in a 2x performance improvement, but more importantly it sparked a series of optimizations that were only possible because of it, resulting in a 5x improvement. nim-hyperx can currently do ~245K requests/s running in a single instance, and +1M requests/s running 8 instances on my budget laptop.
+
 This is not only good for some silly benchmarks done in localhost, where there is no real I/O latency. It works better in the real world, as the longer the `socket.send` call takes to complete, the more frames are batched in the buffer.
+
+## Profiling
+
+At the time it didn't occurred to me to reduce the number of syscalls, and sending bigger data chunks to make better use of TCP packets. I usually use perf, valgrind, and strace for profiling, but usually think of ways of making the calls go faster rather than decreasing the number of them. One more lesson learned.
+
+## Closing notes
+
+Nagle's algorithm is good, but sometimes it's worth to disable it and take care of the batching in the application code. Write coalescing is a batching technique that helps making better use of the network, and reduce `socket.send` calls. I hope you enjoyed this article and found it useful. Until next time.
