@@ -5,6 +5,8 @@ date: 2025-03-28 19:11:00 -0300
 updated: 2025-03-28 19:11:00 -0300
 ---
 
+> TLDR; disabling Nagle's Algorithm and batching data to reduce network calls improves performance. In HTTP/2 this can be done by sending multiple frames at once.
+
 Write coalescing is an I/O optimization technique where multiple small writes are merged into a single larger write before sending data to the underlying system. In Http/2, we can batch multiple frames from one or more streams and send them all at once. This reduces the number of syscalls, and avoids sending tiny TCP packets under load.
 
 ## Nagle's Algorithm
