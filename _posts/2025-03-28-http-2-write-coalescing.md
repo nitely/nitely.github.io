@@ -1,8 +1,8 @@
 ---
 layout: post
 title: "HTTP/2 zero latency write coalescing"
-date: 2025-03-28 18:44:00 -0300
-updated: 2025-03-28 18:44:00 -0300
+date: 2025-03-28 19:11:00 -0300
+updated: 2025-03-28 19:11:00 -0300
 ---
 
 Write coalescing is an I/O optimization technique where multiple small writes are merged into a single larger write before sending data to the underlying system. In Http/2, we can batch multiple frames from one or more streams and send them all at once. This reduces the number of syscalls, and avoids sending tiny TCP packets under load.
