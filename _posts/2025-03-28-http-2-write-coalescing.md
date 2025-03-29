@@ -19,7 +19,7 @@ After some rubberducking with the IA about buffering and batching techniques, an
 
 ## Write coalescing
 
-Instead of sending frames right away for every stream in `socket.send` calls, the frames are added to a buffer. The frames are buffered while a `socket.send` is in progress. Then the entire buffer is sent in a single `socket.send` call. There's a coroutine that continuously waits for the buffer to contain one or more frames to send it. This keeps latency low since single frames can be sent right away, while multiple frames will buffer.
+Instead of sending frames right away for every stream in `socket.send` calls, the frames are added to a buffer. Then the entire buffer is sent in a single `socket.send` call by a coroutine that waits for the buffer to contain something. The frames are buffered while a `socket.send` is in progress. This keeps latency low since single frames can be sent right away, while multiple frames will buffer.
 
 The buffer has a size limit, and when this size is reached, we wait for it to be flushed/drained (see the code below). This prevents consuming unbounded memory when we add to the buffer faster than we can `socket.send`, which is usually the case under some load.
 
@@ -28,8 +28,9 @@ Zero latency (or rather delay) here means we are not waiting for the buffer to r
 The relevant code looks like this:
 
 ```nim
-# This task is started on client creation
-# and runs until the client is closed
+# This is spawned on client creation
+# and runs independently until the client,
+# socket, or signal is closed
 proc sendTask(client: Client) {.async.} =
   var buf = ""
   while not client.isClosed:
@@ -41,7 +42,7 @@ proc sendTask(client: Client) {.async.} =
     check not client.sock.isClosed, newConnClosedError()
     await client.sock.send(addr buf[0], buf.len)
 
-# This is called by streams
+# This is called by a stream to send a frame
 proc send(client: Client, frm: Frame) {.async.} =
   client.buf.add frm  # Add the frame to the buffer
   client.bufSignal.trigger()  # Fire buffer changed signal
