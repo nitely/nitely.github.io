@@ -13,7 +13,7 @@ Most OSes implement [Nagle's Algorithm](https://en.wikipedia.org/wiki/Nagle%27s_
 
 A few weeks ago a [Nim](https://nim-lang.org/) user reported [a performance issue](https://github.com/nim-lang/Nim/issues/24741) when using Nim's std HTTP client. I immediately suspected that Nagle's Algorithm was the cause—this is one of those things that if you know, you know—and indeed, it was.
 
-While I was reading up on the algorithm again, I thought it's a really good idea. This got me thinking: could I implement something like it in my application code?
+While I was reading up on the algorithm again, I thought the general idea is quite good. This got me thinking: could I implement something like it in my application code without the caveats?
 
 After some rubberducking with the IA about buffering and batching techniques, and thinking how could I implement this in [nim-hyperx](https://github.com/nitely/nim-hyperx), the idea finally came to me.
 
