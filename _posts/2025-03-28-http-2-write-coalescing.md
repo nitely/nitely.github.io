@@ -58,7 +58,7 @@ This isn’t just good for some silly benchmarks done on localhost, where there 
 
 ## Profiling
 
-At the time, it didn't occur to me to reduce the number of syscalls and send bigger data chunks to make better use of TCP packets. I usually use perf, valgrind (callgrind), and strace for profiling, but I usually think of ways of making the calls go faster rather than decreasing their number. One more lesson learned.
+At the time, it didn't occur to me to reduce the number of syscalls and send bigger data chunks to make better use of TCP packets. I usually use perf, valgrind (callgrind), and strace for profiling, but focus on ways of making the calls go faster rather than decreasing their number. One more lesson learned.
 
 ## Closing notes
 
