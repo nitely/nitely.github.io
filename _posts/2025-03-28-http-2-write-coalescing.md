@@ -55,7 +55,7 @@ proc send(client: Client, frm: Frame) {.async.} =
 
 The buffer can grow larger than 64KB, but it's still memory-bounded. This is checked after adding to the buffer to ensure frames are being added in the correct `send` call order. The buffer's max size is `64KB+number_of_streams*max_frame_size`.
 
-This optimization resulted in a 2x speedup, but more importantly, it sparked a series of optimizations that were only possible because of it, resulting in a 5x speedup. nim-hyperx can currently handle ~245K requests/s running in a single instance, and +1M requests/s running 8 instances on my budget laptop.
+This optimization resulted in a 2x speedup, but more importantly, it sparked a series of optimizations that were only possible because of it, resulting in a final 10x speedup. nim-hyperx can currently handle ~245K requests/s running in a single instance, and +1M requests/s running 8 instances on my budget laptop.
 
 This isn’t just good for some silly benchmarks done on localhost, where there is no real I/O latency. It works better in the real world, and the longer the `socket.send` call takes to complete, the more frames are batched into the buffer.
 
