@@ -2,7 +2,7 @@
 layout: post
 title: "HTTP/2 zero latency write coalescing"
 date: 2025-03-28 19:11:00 -0300
-updated: 2025-03-28 19:11:00 -0300
+updated: 2025-04-01 19:54:00 -0300
 ---
 
 Write coalescing is an I/O optimization technique where multiple small writes are merged into a single larger write before sending data to the underlying system. In Http/2, we can batch multiple frames from one or more streams and send them all at once. This reduces the number of syscalls, and avoids sending tiny TCP packets under load.
@@ -10,6 +10,8 @@ Write coalescing is an I/O optimization technique where multiple small writes ar
 ## Nagle's Algorithm
 
 Most OSes implement [Nagle's Algorithm](https://en.wikipedia.org/wiki/Nagle%27s_algorithm), which improves the efficiency of TCP/IP networks by reducing the number of packets that need to be sent over the network. However, it [interacts poorly](https://en.wikipedia.org/wiki/Nagle%27s_algorithm#Interaction_with_delayed_ACK) with another algorithm called [delayed ACK](https://en.wikipedia.org/wiki/TCP_delayed_acknowledgment), which can cause a delay of up to 500 milliseconds.
+
+Because of this, most HTTP servers and clients *usually* disable Nagle's Algorithm or at least provide an option to do so. It can be disabled by setting [TCP_NODELAY](https://linux.die.net/man/7/tcp) on the socket.
 
 A few weeks ago a [Nim](https://nim-lang.org/) user reported [a performance issue](https://github.com/nim-lang/Nim/issues/24741) when using Nim's std HTTP client. I immediately suspected that Nagle's Algorithm was the cause—this is one of those things that if you know, you know—and indeed, it was.
 
@@ -51,15 +53,15 @@ proc send(client: Client, frm: Frame) {.async.} =
     await client.bufDrainSignal.waitFor()
 ```
 
-The buffer can grow larger than 64KB, but it's still memory-bounded. This is checked after adding to the buffer to ensure frames are being added in the correct `socket.send` call order. The buffer's max size is `64KB+number_of_streams*max_frame_size`.
+The buffer can grow larger than 64KB, but it's still memory-bounded. This is checked after adding to the buffer to ensure frames are being added in the correct `send` call order. The buffer's max size is `64KB+number_of_streams*max_frame_size`.
 
 This optimization resulted in a 2x speedup, but more importantly, it sparked a series of optimizations that were only possible because of it, resulting in a 5x speedup. nim-hyperx can currently handle ~245K requests/s running in a single instance, and +1M requests/s running 8 instances on my budget laptop.
 
-This isn’t just good for some silly benchmarks done on localhost, where there is no real I/O latency. It works better in the real world, as the longer the `socket.send` call takes to complete, the more frames are batched into the buffer.
+This isn’t just good for some silly benchmarks done on localhost, where there is no real I/O latency. It works better in the real world, and the longer the `socket.send` call takes to complete, the more frames are batched into the buffer.
 
 ## Profiling
 
-At the time, it didn't occur to me to reduce the number of syscalls and send bigger data chunks to make better use of TCP packets. I usually use perf, valgrind (callgrind), and strace for profiling, but focus on ways of making the calls go faster rather than decreasing their number. One more lesson learned.
+At the time, it didn't occur to me to reduce the number of syscalls and send bigger data chunks to make better use of TCP packets. I usually use perf, valgrind (callgrind), and strace for profiling, but focus on ways of making the calls go faster rather than decreasing their number. Lesson learned.
 
 ## Closing notes
 
