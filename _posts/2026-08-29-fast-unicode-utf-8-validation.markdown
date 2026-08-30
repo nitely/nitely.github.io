@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Fast unicode (UTF-8) validation"
+title: "Fast unicode (UTF-8) validation with autovectorization"
 date: 2026-08-30 00:15:00 -0300
 updated: 2026-08-30 00:15:00 -0300
 ---
