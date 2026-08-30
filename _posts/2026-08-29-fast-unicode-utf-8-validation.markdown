@@ -51,7 +51,7 @@ data/twitter.json  --  0.60 MiB, 15.11% non-ascii
 
 Validators:
 - `nitely`: the validator explained in this article.
-- `branchy`: classical branchy validator derived from the UTF8 spec.
+- `branchy`: classical branchy validator derived from the unicode spec.
 - `dfa`: a [DFA based validator](https://bjoern.hoehrmann.de/utf-8/decoder/dfa/). 
 
 The algorithm is quite fast for ASCII only text, so the more ASCII in the text the faster it gets. The `jp_random` text contains almost pure UTF-8 sequences, and so it should be taken as the closest to base performance.
