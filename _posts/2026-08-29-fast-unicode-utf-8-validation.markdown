@@ -1,4 +1,9 @@
-# Fast unicode (UTF-8) validation
+---
+layout: post
+title: "Fast unicode (UTF-8) validation"
+date: 2026-08-30 00:15:00 -0300
+updated: 2026-08-30 00:15:00 -0300
+---
 
 TLDR: This article describes a very fast algorithm for UTF-8 unicode validation. It has two paths, ascii and UTF-8, both paths are autovectorized.
 
